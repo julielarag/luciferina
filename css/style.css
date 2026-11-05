@@ -1,0 +1,74 @@
+:root {
+    color-scheme: dark;
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+    background: #080d12;
+    color: #e6f4f7;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    min-width: 320px;
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+}
+
+.sketch {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 50% 50%, rgba(0, 219, 255, 0.075), transparent 48%),
+        #080d12;
+}
+
+.sketch canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+}
+
+.sketch__label {
+    position: absolute;
+    z-index: 1;
+    bottom: 32px;
+    left: 36px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #e6f4f7;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.sketch__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00dbff;
+    box-shadow: 0 0 12px rgba(0, 219, 255, 0.8);
+}
+
+.sketch__separator,
+.sketch__description {
+    color: rgba(230, 244, 247, 0.52);
+}
+
+@media (max-width: 480px) {
+    .sketch__label {
+        bottom: 22px;
+        left: 20px;
+        font-size: 10px;
+    }
+}
