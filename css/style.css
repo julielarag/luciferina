@@ -1,8 +1,12 @@
 :root {
     color-scheme: dark;
     font-family: Inter, "Helvetica Neue", Arial, sans-serif;
-    background: #080d12;
     color: #e6f4f7;
+    background: #080d12;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -18,57 +22,281 @@ body {
 }
 
 body {
+    min-height: 100vh;
+    min-height: 100svh;
     overflow: hidden;
 }
 
 .sketch {
     position: relative;
+    display: grid;
     width: 100%;
     min-height: 100vh;
     min-height: 100svh;
+    place-items: center;
     overflow: hidden;
     background:
         radial-gradient(ellipse at 50% 50%, rgba(0, 219, 255, 0.075), transparent 48%),
         #080d12;
 }
 
-.sketch canvas {
-    position: absolute;
-    inset: 0;
-    display: block;
-}
-
 .sketch__label {
     position: absolute;
-    z-index: 1;
-    bottom: 32px;
-    left: 36px;
+    z-index: 3;
+    top: 28px;
+    left: 32px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    color: #e6f4f7;
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    gap: 12px;
 }
 
 .sketch__dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
     border-radius: 50%;
     background: #00dbff;
-    box-shadow: 0 0 12px rgba(0, 219, 255, 0.8);
+    box-shadow: 0 0 14px rgba(0, 219, 255, 0.8);
 }
 
-.sketch__separator,
-.sketch__description {
-    color: rgba(230, 244, 247, 0.52);
+.sketch__label p,
+.keyword-card p {
+    margin: 0;
 }
 
-@media (max-width: 480px) {
+.sketch__eyebrow,
+.keyword-card__eyebrow {
+    color: rgba(230, 244, 247, 0.48);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.sketch__title {
+    margin-top: 5px !important;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+.particle-stage {
+    position: relative;
+    width: min(88vw, 1500px);
+    aspect-ratio: 1234.79 / 140.84;
+}
+
+.particle-stage__base,
+.particle-stage > svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.particle-stage__base {
+    object-fit: fill;
+    opacity: 0.5;
+}
+
+.particle-stage > svg {
+    overflow: visible;
+}
+
+.particle-hit-target {
+    fill: transparent;
+    cursor: pointer;
+    pointer-events: all;
+    animation: particle-float 4s ease-in-out infinite;
+}
+
+.keyword-particle {
+    fill: #00dbff !important;
+    pointer-events: none;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: particle-float 4s ease-in-out infinite;
+    transition: opacity 180ms ease;
+}
+
+.keyword-particle.is-hovered,
+.keyword-particle:focus-visible,
+.keyword-particle.is-related:not(.is-selected) {
+    filter: drop-shadow(0 0 24px rgba(0, 219, 255, 0.9))
+        drop-shadow(0 0 56px rgba(0, 219, 255, 0.6));
+}
+
+.keyword-particle.is-hovered:not(.is-selected),
+.keyword-particle:focus-visible:not(.is-selected) {
+    transform: scale(1.2);
+}
+
+.keyword-particle.is-hovered,
+.keyword-particle.is-selected {
+    fill: #ffffff !important;
+}
+
+.keyword-particle:focus-visible {
+    outline: none;
+}
+
+.keyword-particle.is-selected {
+    opacity: 1;
+    transform: scale(1.4);
+}
+
+.keyword-particle.is-related:not(.is-selected) {
+    filter: drop-shadow(0 0 36px rgba(0, 219, 255, 1))
+        drop-shadow(0 0 84px rgba(0, 219, 255, 0.8));
+}
+
+.keyword-particle.is-dimmed:not(.is-selected) {
+    opacity: 0.13;
+    filter: none !important;
+}
+
+@keyframes particle-float {
+    0%,
+    100% {
+        translate: 0 0;
+    }
+
+    50% {
+        translate: 0 -3px;
+    }
+}
+
+.species-controls {
+    position: absolute;
+    z-index: 3;
+    top: 28px;
+    right: 32px;
+    display: flex;
+    max-width: min(62vw, 600px);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.species-button {
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 219, 255, 0.32);
+    border-radius: 999px;
+    color: rgba(230, 244, 247, 0.76);
+    background: rgba(8, 13, 18, 0.72);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.species-button:hover,
+.species-button:focus-visible,
+.species-button.is-active {
+    border-color: #00dbff;
+    color: #e6faff;
+    background: rgba(0, 219, 255, 0.12);
+    box-shadow: 0 0 16px rgba(0, 219, 255, 0.16);
+}
+
+.species-button:focus-visible {
+    outline: 2px solid #00dbff;
+    outline-offset: 3px;
+}
+
+.keyword-card {
+    position: absolute;
+    z-index: 3;
+    right: 32px;
+    bottom: 28px;
+    width: min(340px, calc(100vw - 40px));
+    padding: 20px;
+    border: 1px solid rgba(0, 219, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(8, 13, 18, 0.86);
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(14px);
+}
+
+.keyword-card h1 {
+    margin: 10px 0 8px;
+    color: #f0fbff;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+#keyword-description {
+    color: rgba(230, 244, 247, 0.72);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.keyword-card__species {
+    margin-top: 14px !important;
+    padding-top: 12px;
+    border-top: 1px solid rgba(230, 244, 247, 0.12);
+    color: #00dbff;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.error-message {
+    position: absolute;
+    z-index: 4;
+    right: 24px;
+    bottom: 24px;
+    left: 24px;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 14px 18px;
+    border: 1px solid rgba(255, 120, 120, 0.5);
+    border-radius: 8px;
+    color: #ffe1e1;
+    background: #381d24;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+@media (max-width: 700px) {
     .sketch__label {
-        bottom: 22px;
-        left: 20px;
+        top: 18px;
+        left: 18px;
+    }
+
+    .species-controls {
+        top: 78px;
+        right: 16px;
+        left: 16px;
+        max-width: none;
+        justify-content: flex-start;
+        gap: 6px;
+    }
+
+    .species-button {
+        min-height: 32px;
+        padding: 6px 9px;
         font-size: 10px;
+    }
+
+    .particle-stage {
+        width: 94vw;
+    }
+
+    .keyword-card {
+        right: 16px;
+        bottom: 16px;
+        width: min(340px, calc(100vw - 32px));
+        padding: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

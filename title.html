@@ -4,19 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#080d12">
-    <title>Poppins — Sistema de partículas</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js" defer></script>
-    <script src="js/script.js" defer></script>
+    <title>Partículas — Red de especies y keywords</title>
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <script src="js/script.js?v=6" defer></script>
 </head>
 <body>
-    <main class="sketch" id="sketch-container" aria-label="Logo Poppins formado por partículas animadas">
-        <div class="sketch__label" aria-hidden="true">
-            <span class="sketch__dot"></span>
-            <span>Poppins</span>
-            <span class="sketch__separator">/</span>
-            <span class="sketch__description">Sistema de partículas</span>
+    <main class="sketch">
+        <header class="sketch__label">
+            <span class="sketch__dot" aria-hidden="true"></span>
+            <div>
+                <p class="sketch__eyebrow">Sistema interactivo</p>
+                <p class="sketch__title">Red de bioluminiscencia</p>
+            </div>
+        </header>
+
+        <nav class="species-controls" id="species-controls" aria-label="Filtrar por especie"></nav>
+
+        <div class="particle-stage" id="particle-stage">
+            <img
+                class="particle-stage__base"
+                id="base-image"
+                src="img/particulas_inactivas.png"
+                alt=""
+                aria-hidden="true">
         </div>
+
+        <aside class="keyword-card" aria-live="polite" aria-atomic="true" hidden>
+            <p class="keyword-card__eyebrow">Keyword</p>
+            <h1 id="keyword-title">Explora las partículas</h1>
+            <p id="keyword-description">Selecciona un punto para consultar su keyword y las especies relacionadas.</p>
+            <p class="keyword-card__species" id="keyword-species" hidden></p>
+        </aside>
+
+        <p class="error-message" id="error-message" role="alert" hidden></p>
     </main>
 </body>
 </html>
