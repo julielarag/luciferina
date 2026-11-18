@@ -1,11 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-   <img src="poppins_logo.svg" alt="Poppins Logo"> 
-</body>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07131a">
+    <title>Red de partículas — Luciferina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script type="module" src="js/script.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="intro">
+          <p class="eyebrow">Sistema interactivo</p>
+          <h1>Red de partículas</h1>
+          <p class="instructions">Explora las relaciones entre keywords y especies.</p>
+        </div>
+        <nav class="species-filters" id="species-filters" aria-label="Filtrar por especie"></nav>
+      </header>
+
+      <section class="visualization" aria-label="Visualización de keywords">
+        <div class="stage" id="particle-stage">
+          <img
+            class="inactive-artwork"
+            src="img/particulas_inactivas.png"
+            alt=""
+            aria-hidden="true"
+          >
+          <div class="particle-layer" id="particle-layer"></div>
+        </div>
+      </section>
+
+      <p class="app-status" id="app-status" role="status">Cargando datos y partículas…</p>
+
+      <aside class="definition-panel" id="definition-panel" aria-live="polite" hidden>
+        <p class="panel-eyebrow">Keyword</p>
+        <h2 id="definition-title"></h2>
+        <p class="definition-text" id="definition-text"></p>
+        <p class="definition-species" id="definition-species"></p>
+      </aside>
+    </main>
+  </body>
 </html>

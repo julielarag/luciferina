@@ -1,432 +1,323 @@
-const DATA_PATH = "data/";
-const ACTIVE_PARTICLES_PATH = "img/particulas_activas.svg";
-const BASE_IMAGE_PATH = "img/particulas_inactivas.png";
-const PARTICLES_PER_LETTER = 10;
-const PARTICLE_SIZE_MIN = 2;
-const PARTICLE_SIZE_MAX = 8;
-const HOVER_HITBOX_RADIUS = 50;
-const LETTER_RANGES = [
-    [0, 85],
-    [85, 225],
-    [225, 375],
-    [375, 465],
-    [465, 600],
-    [600, 720],
-    [720, 865],
-    [865, 940],
-    [940, 1100],
-    [1100, 1235]
-];
+const PARTICLE_SIZE_MIN = 2.28; // Minimum random scale applied to each SVG particle.
+const PARTICLE_SIZE_MAX = 1.28; // Maximum random scale applied to each SVG particle.
 
 class CsvParser {
-    static parse(text) {
-        const rows = [];
-        let row = [];
-        let field = "";
-        let quoted = false;
+  static parse(text) {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let insideQuotes = false;
 
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
+    for (let index = 0; index < text.length; index += 1) {
+      const character = text[index];
 
-            if (quoted) {
-                if (char === '"' && text[i + 1] === '"') {
-                    field += '"';
-                    i++;
-                } else if (char === '"') {
-                    quoted = false;
-                } else {
-                    field += char;
-                }
-            } else if (char === '"') {
-                quoted = true;
-            } else if (char === ",") {
-                row.push(field);
-                field = "";
-            } else if (char === "\n" || char === "\r") {
-                row.push(field);
-                if (row.some((value) => value.trim() !== "")) {
-                    rows.push(row);
-                }
-                row = [];
-                field = "";
-                if (char === "\r" && text[i + 1] === "\n") i++;
-            } else {
-                field += char;
-            }
+      if (insideQuotes) {
+        if (character === '"' && text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else if (character === '"') {
+          insideQuotes = false;
+        } else {
+          field += character;
         }
-
-        if (field !== "" || row.length > 0) {
-            row.push(field);
-            rows.push(row);
-        }
-
-        const headers = rows.shift()?.map((header) => header.trim()) ?? [];
-        return rows.map((values) =>
-            Object.fromEntries(headers.map((header, index) => [header, (values[index] ?? "").trim()]))
-        );
+      } else if (character === '"' && field.length === 0) {
+        insideQuotes = true;
+      } else if (character === ",") {
+        row.push(field);
+        field = "";
+      } else if (character === "\n" || character === "\r") {
+        row.push(field);
+        if (row.some((cell) => cell.trim() !== "")) rows.push(row);
+        row = [];
+        field = "";
+        if (character === "\r" && text[index + 1] === "\n") index += 1;
+      } else {
+        field += character;
+      }
     }
+
+    if (insideQuotes) throw new Error("Un CSV contiene un campo entre comillas sin cerrar.");
+    if (field.length > 0 || row.length > 0) {
+      row.push(field);
+      if (row.some((cell) => cell.trim() !== "")) rows.push(row);
+    }
+    if (rows.length < 2) throw new Error("Un CSV no contiene encabezados y datos.");
+
+    const headers = rows[0].map((header, index) =>
+      (index === 0 ? header.replace(/^\uFEFF/, "") : header).trim()
+    );
+    return rows.slice(1).map((cells) =>
+      Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""]))
+    );
+  }
 }
 
 class DataRepository {
-    async load() {
-        const [speciesCsv, keywordsCsv, relationsCsv, svgText] = await Promise.all([
-            this.fetchText(`${DATA_PATH}especies.csv`),
-            this.fetchText(`${DATA_PATH}keywords.csv`),
-            this.fetchText(`${DATA_PATH}keyword_especie.csv`),
-            this.fetchText(ACTIVE_PARTICLES_PATH)
-        ]);
+  static async load() {
+    const [speciesCsv, keywordsCsv, relationsCsv, svgText] = await Promise.all([
+      this.fetchText("data/especies.csv"),
+      this.fetchText("data/keywords.csv"),
+      this.fetchText("data/keyword_especie.csv"),
+      this.fetchText("img/particulas_activas.svg"),
+    ]);
 
-        const species = CsvParser.parse(speciesCsv);
-        const keywords = CsvParser.parse(keywordsCsv);
-        const keywordById = new Map(keywords.map((keyword) => [keyword.id, keyword]));
-        const speciesByKeyword = this.createSpeciesMap(
-            relationsCsv,
-            keywordById,
-            new Set(species.map(({ id }) => id))
+    const species = new Map(
+      CsvParser.parse(speciesCsv).map((row) => [
+        Number(row.id),
+        { id: Number(row.id), name: row.nombre.trim() },
+      ])
+    );
+    const keywords = new Map(
+      CsvParser.parse(keywordsCsv).map((row) => {
+        const id = Number(row.id);
+        return [
+          id,
+          {
+            id,
+            name: row.keyword.trim(),
+            definition: row.definicion.trim(),
+            relatedKeywordIds: this.parseIds(row.keyword_ids, id),
+            speciesIds: new Set(),
+          },
+        ];
+      })
+    );
+
+    for (const row of CsvParser.parse(relationsCsv)) {
+      const keywordId = Number(row.Keyword);
+      const speciesId = Number(row.Especie);
+      const keyword = keywords.get(keywordId);
+      if (keyword && species.has(speciesId)) keyword.speciesIds.add(speciesId);
+      else console.warn(`Relación keyword-especie inválida: ${keywordId}, ${speciesId}.`);
+    }
+
+    const svgDocument = new DOMParser().parseFromString(svgText, "image/svg+xml");
+    if (svgDocument.querySelector("parsererror")) {
+      throw new Error("No se pudo interpretar img/particulas_activas.svg.");
+    }
+
+    const svg = svgDocument.documentElement;
+    const viewBox = (svg.getAttribute("viewBox") ?? "").split(/[\s,]+/).map(Number);
+    if (
+      viewBox.length !== 4 ||
+      viewBox.some((value) => !Number.isFinite(value)) ||
+      viewBox[2] <= 0 ||
+      viewBox[3] <= 0
+    ) {
+      throw new Error("El SVG de partículas necesita un viewBox válido.");
+    }
+
+    const shapes = [...svg.querySelectorAll("circle, ellipse")];
+    if (shapes.length !== keywords.size) {
+      throw new Error(
+        `El SVG contiene ${shapes.length} partículas, pero keywords.csv contiene ${keywords.size} keywords.`
+      );
+    }
+
+    const keywordIds = [...keywords.keys()];
+    const particles = shapes.map((shape, index) => {
+      const keyword = keywords.get(keywordIds[index]);
+      if (!keyword) throw new Error(`No se encontró el keyword ${keywordIds[index]}.`);
+      return new Particle(shape, keyword);
+    });
+
+    const relatedKeywords = new Map(
+      [...keywords.keys()].map((keywordId) => [keywordId, new Set()])
+    );
+    for (const keyword of keywords.values()) {
+      for (const relatedId of keyword.relatedKeywordIds) {
+        if (!keywords.has(relatedId)) {
+          console.warn(`El keyword ${keyword.id} refiere al keyword inexistente ${relatedId}.`);
+        } else if (relatedId !== keyword.id) {
+          relatedKeywords.get(keyword.id).add(relatedId);
+          relatedKeywords.get(relatedId).add(keyword.id);
+        }
+      }
+      if (keyword.speciesIds.size < 1 || keyword.speciesIds.size > 3) {
+        console.warn(
+          `El keyword ${keyword.id} tiene ${keyword.speciesIds.size} especies relacionadas en keyword_especie.csv.`
         );
-        const relatedKeywords = this.createKeywordRelations(keywords, keywordById);
-        const svgDocument = new DOMParser().parseFromString(svgText, "image/svg+xml");
-
-        if (svgDocument.querySelector("parsererror")) {
-            throw new Error("No se pudo interpretar img/particulas_activas.svg.");
-        }
-
-        if (new Set(keywords.map((keyword) => keyword.id)).size !== keywords.length) {
-            throw new Error("Hay IDs de keyword duplicados en data/keywords.csv.");
-        }
-
-        return {
-            species,
-            keywords: keywords.sort((a, b) => Number(a.id) - Number(b.id)),
-            speciesByKeyword,
-            relatedKeywords,
-            svgDocument
-        };
+      }
     }
 
-    async fetchText(path) {
-        const response = await fetch(path);
-        if (!response.ok) {
-            throw new Error(`No se pudo cargar ${path} (${response.status}).`);
-        }
-        return response.text();
+    return { species, keywords, relatedKeywords, particles, svg };
+  }
+
+  static async fetchText(path) {
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new Error(`No se pudo cargar ${path} (HTTP ${response.status}).`);
     }
+    return response.text();
+  }
 
-    createSpeciesMap(csvText, keywordById, speciesIds) {
-        const speciesByKeyword = new Map();
-        const seenPairs = new Set();
-
-        for (const row of CsvParser.parse(csvText)) {
-            const keywordId = row.Keyword;
-            const speciesId = row.Especie;
-
-            if (!keywordById.has(keywordId)) {
-                console.warn(`keyword_especie.csv referencia el keyword inexistente ${keywordId}.`);
-                continue;
-            }
-
-            if (!speciesIds.has(speciesId)) {
-                console.warn(`keyword_especie.csv referencia la especie inexistente ${speciesId}.`);
-                continue;
-            }
-
-            const pair = `${keywordId}:${speciesId}`;
-            if (seenPairs.has(pair)) {
-                console.warn(`Relación duplicada en keyword_especie.csv: keyword ${keywordId}, especie ${speciesId}.`);
-                continue;
-            }
-            seenPairs.add(pair);
-
-            if (!speciesByKeyword.has(keywordId)) {
-                speciesByKeyword.set(keywordId, new Set());
-            }
-            speciesByKeyword.get(keywordId).add(speciesId);
-        }
-
-        for (const keywordId of keywordById.keys()) {
-            if (!speciesByKeyword.has(keywordId)) {
-                console.warn(`El keyword ${keywordId} no tiene especie asignada en keyword_especie.csv.`);
-            }
-        }
-
-        return speciesByKeyword;
-    }
-
-    createKeywordRelations(keywords, keywordById) {
-        const relatedKeywords = new Map(keywords.map(({ id }) => [id, new Set()]));
-
-        for (const keyword of keywords) {
-            for (const relatedId of keyword.keyword_ids.split(",")) {
-                const id = relatedId.trim();
-                if (!id) continue;
-
-                if (!/^\d+$/.test(id) || !keywordById.has(id)) {
-                    console.warn(`Relación inválida en keyword_ids del keyword ${keyword.id}: "${id}".`);
-                    continue;
-                }
-
-                if (id !== keyword.id) {
-                    relatedKeywords.get(keyword.id).add(id);
-                    relatedKeywords.get(id).add(keyword.id);
-                }
-            }
-        }
-
-        return relatedKeywords;
-    }
+  static parseIds(value, keywordId) {
+    return value.split(",").reduce((ids, value) => {
+      const id = value.trim();
+      if (!id) return ids;
+      if (/^\d+$/.test(id)) ids.push(Number(id));
+      else console.warn(`Relación keyword-keyword inválida en keyword ${keywordId}: "${id}".`);
+      return ids;
+    }, []);
+  }
 }
 
 class Particle {
-    constructor(element, keyword, speciesIds, relatedIds, onSelect) {
-        this.element = element;
-        this.keyword = keyword;
-        this.speciesIds = speciesIds;
-        this.relatedIds = relatedIds;
+  constructor(shape, keyword) {
+    this.element = shape;
+    this.keyword = keyword;
+    this.id = keyword.id;
 
-        this.randomizeSize();
-        this.element.classList.add("keyword-particle");
-        this.element.dataset.keywordId = keyword.id;
-        this.element.setAttribute("role", "button");
-        this.element.setAttribute("tabindex", "0");
-        this.element.setAttribute("aria-label", keyword.keyword);
-        this.element.setAttribute("aria-pressed", "false");
-        this.element.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect(this);
-            }
-        });
+    const scale = PARTICLE_SIZE_MIN + Math.random() * (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN);
+    if (shape.tagName.toLowerCase() === "circle") {
+      const radius = Number(shape.getAttribute("r"));
+      if (!Number.isFinite(radius) || radius <= 0) {
+        throw new Error(`La partícula ${this.id} no tiene un radio válido.`);
+      }
+      shape.setAttribute("r", String(radius * scale));
+    } else {
+      const radiusX = Number(shape.getAttribute("rx"));
+      const radiusY = Number(shape.getAttribute("ry"));
+      if (!Number.isFinite(radiusX) || !Number.isFinite(radiusY) || radiusX <= 0 || radiusY <= 0) {
+        throw new Error(`La partícula ${this.id} no tiene radios válidos.`);
+      }
+      shape.setAttribute("rx", String(radiusX * scale));
+      shape.setAttribute("ry", String(radiusY * scale));
     }
 
-    randomizeSize() {
-        const size = randomBetween(PARTICLE_SIZE_MIN, PARTICLE_SIZE_MAX) * 1.7;
+    shape.classList.add("particle-shape");
+    shape.setAttribute("data-keyword-id", String(this.id));
+    shape.setAttribute("role", "button");
+    shape.setAttribute("tabindex", "0");
+    shape.setAttribute("aria-label", `${keyword.name}: ${keyword.definition}`);
+    shape.setAttribute("aria-pressed", "false");
 
-        if (this.element.tagName.toLowerCase() === "circle") {
-            this.element.setAttribute("r", String(size / 2));
-            return;
-        }
-
-        const originalRx = Number(this.element.getAttribute("rx"));
-        const originalRy = Number(this.element.getAttribute("ry"));
-        const scale = size / (2 * Math.max(originalRx, originalRy));
-        this.element.setAttribute("rx", String(originalRx * scale));
-        this.element.setAttribute("ry", String(originalRy * scale));
-    }
-
-    setState({ selectedId, speciesId }) {
-        const isSelected = this.keyword.id === selectedId;
-        const isSpeciesMatch = this.speciesIds.has(speciesId);
-        const isRelated = speciesId
-            ? isSpeciesMatch
-            : this.relatedIds.has(selectedId);
-
-        this.element.classList.toggle("is-selected", isSelected);
-        this.element.classList.toggle("is-related", isRelated);
-        this.element.classList.toggle("is-dimmed", Boolean(speciesId) && !isSpeciesMatch);
-        this.element.setAttribute("aria-pressed", String(isSelected));
-    }
-
-    setHovered(isHovered) {
-        this.element.classList.toggle("is-hovered", isHovered);
-    }
-
-    setFloatDelay(delay) {
-        this.element.style.animationDelay = `${delay}s`;
-    }
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = keyword.name;
+    shape.prepend(title);
+  }
 }
 
 class ParticleSystem {
-    constructor(stage, data, onSelect) {
-        this.stage = stage;
-        this.data = data;
-        this.particles = [];
-        this.onSelect = onSelect;
+  constructor({ particles, species, relatedKeywords, svg }) {
+    this.particles = particles;
+    this.species = species;
+    this.relatedKeywords = relatedKeywords;
+    this.svg = svg;
+    this.selectedKeywordId = null;
+    this.selectedSpeciesId = null;
+    this.particlesById = new Map(particles.map((particle) => [particle.id, particle]));
+  }
+
+  mount(stage, filtersElement, panel) {
+    this.svg.setAttribute("preserveAspectRatio", "none");
+    this.svg.setAttribute("aria-label", "Partículas interactivas de keywords");
+    this.svg.setAttribute("role", "group");
+    stage.append(this.svg);
+    this.renderSpeciesFilters(filtersElement);
+    this.bindParticleEvents(panel);
+    this.renderParticleStates();
+  }
+
+  renderSpeciesFilters(container) {
+    container.replaceChildren();
+    for (const species of this.species.values()) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "species-button";
+      button.dataset.speciesId = String(species.id);
+      button.textContent = species.name;
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => {
+        this.selectedSpeciesId =
+          this.selectedSpeciesId === species.id ? null : species.id;
+        this.renderSpeciesFilters(container);
+        this.renderParticleStates();
+      });
+      container.append(button);
     }
+  }
 
-    mount() {
-        const svg = document.importNode(this.data.svgDocument.documentElement, true);
-        const allElements = Array.from(svg.querySelectorAll("circle, ellipse"));
-        const letterGroups = LETTER_RANGES.map(([minX, maxX]) =>
-            allElements
-                .filter((element) => {
-                    const x = Number(element.getAttribute("cx"));
-                    return x >= minX && x < maxX;
-                })
-                .sort((a, b) => Number(a.getAttribute("cx")) - Number(b.getAttribute("cx")))
-        );
-
-        if (letterGroups.some((group) => group.length < PARTICLES_PER_LETTER)) {
-            throw new Error("No hay suficientes partículas en una o más letras de particulas_activas.svg.");
+  bindParticleEvents(panel) {
+    for (const particle of this.particles) {
+      particle.element.addEventListener("click", () => {
+        this.selectKeyword(particle.id, panel);
+      });
+      particle.element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this.selectKeyword(particle.id, panel);
         }
+      });
+    }
+  }
 
-        const elements = letterGroups.flatMap((group) => {
-            const selected = Array.from({ length: PARTICLES_PER_LETTER }, (_, index) =>
-                group[Math.floor(((index + 0.5) * group.length) / PARTICLES_PER_LETTER)]
-            );
-            const selectedSet = new Set(selected);
-            for (const element of group) {
-                if (!selectedSet.has(element)) element.remove();
-            }
-            return selected;
-        });
+  selectKeyword(keywordId, panel) {
+    this.selectedKeywordId = keywordId;
+    const keyword = this.particlesById.get(keywordId).keyword;
+    const speciesNames = [...keyword.speciesIds]
+      .map((speciesId) => this.species.get(speciesId)?.name)
+      .filter(Boolean);
 
-        const keywordStep = this.data.keywords.length / elements.length;
-        const keywords = elements.map((_, index) =>
-            this.data.keywords[Math.floor((index + 0.5) * keywordStep)]
-        );
+    panel.title.textContent = keyword.name;
+    panel.definition.textContent = keyword.definition;
+    panel.species.textContent = speciesNames.length
+      ? `Especies: ${speciesNames.join(" · ")}`
+      : "Sin especie asignada";
+    panel.container.hidden = false;
+    this.renderParticleStates();
+  }
 
-        svg.setAttribute("preserveAspectRatio", "none");
-        svg.setAttribute("aria-label", "Partículas interactivas de keywords");
+  renderParticleStates() {
+    for (const particle of this.particles) {
+      const shape = particle.element;
+      const isSelected = particle.id === this.selectedKeywordId;
+      const isRelated = Boolean(this.relatedKeywords.get(this.selectedKeywordId)?.has(particle.id));
+      const isSpeciesMatch =
+        this.selectedSpeciesId !== null &&
+        particle.keyword.speciesIds.has(this.selectedSpeciesId);
+      const isSpeciesMuted = this.selectedSpeciesId !== null && !isSpeciesMatch;
 
-        this.particles = elements.map((element, index) => {
-            const keyword = keywords[index];
-            const speciesIds = this.data.speciesByKeyword.get(keyword.id) ?? new Set();
-            const relatedIds = this.data.relatedKeywords.get(keyword.id) ?? new Set();
-
-            const particle = new Particle(element, keyword, speciesIds, relatedIds, this.onSelect);
-            particle.setFloatDelay(-randomBetween(0, 4));
-            return particle;
-        });
-
-        const viewBox = svg.viewBox.baseVal;
-        const stageBounds = this.stage.getBoundingClientRect();
-        const scaleX = stageBounds.width / viewBox.width;
-        const scaleY = stageBounds.height / viewBox.height;
-        const centers = elements.map((element) => ({
-            x: Number(element.getAttribute("cx")),
-            y: Number(element.getAttribute("cy"))
-        }));
-        const hitTargets = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        hitTargets.classList.add("particle-hit-targets");
-
-        centers.forEach((center, index) => {
-            const nearestDistance = Math.min(
-                ...centers
-                    .filter((_, otherIndex) => otherIndex !== index)
-                    .map((other) =>
-                        Math.hypot((center.x - other.x) * scaleX, (center.y - other.y) * scaleY)
-                    )
-            );
-            const hitRadius = Math.max(0, Math.min(HOVER_HITBOX_RADIUS, nearestDistance / 2 - 4));
-            const target = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-            target.classList.add("particle-hit-target");
-            target.dataset.keywordId = this.particles[index].keyword.id;
-            target.style.animationDelay = this.particles[index].element.style.animationDelay;
-            target.setAttribute("cx", String(center.x));
-            target.setAttribute("cy", String(center.y));
-            target.setAttribute("rx", String(hitRadius / scaleX));
-            target.setAttribute("ry", String(hitRadius / scaleY));
-            target.setAttribute("aria-hidden", "true");
-            const particle = this.particles[index];
-            target.addEventListener("pointerover", () => particle.setHovered(true));
-            target.addEventListener("pointerout", (event) => {
-                if (!target.contains(event.relatedTarget)) particle.setHovered(false);
-            });
-            target.addEventListener("click", () => this.onSelect(particle));
-            hitTargets.append(target);
-        });
-
-        svg.append(hitTargets);
-        this.stage.querySelector("svg")?.remove();
-        this.stage.append(svg);
+      shape.classList.toggle("is-selected", isSelected);
+      shape.classList.toggle("is-related", isRelated);
+      shape.classList.toggle("is-species-match", isSpeciesMatch);
+      shape.classList.toggle("is-species-muted", isSpeciesMuted);
+      shape.setAttribute("aria-pressed", String(isSelected));
     }
 
-    update(selectedId, speciesId) {
-        for (const particle of this.particles) {
-            particle.setState({ selectedId, speciesId });
-        }
-    }
-
+    document.querySelectorAll(".species-button").forEach((button) => {
+      const isActive = Number(button.dataset.speciesId) === this.selectedSpeciesId;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+  }
 }
 
 class ParticleApp {
-    constructor() {
-        this.stage = document.querySelector("#particle-stage");
-        this.descriptionTitle = document.querySelector("#keyword-title");
-        this.descriptionText = document.querySelector("#keyword-description");
-        this.errorMessage = document.querySelector("#error-message");
-        this.speciesControls = document.querySelector("#species-controls");
-        this.selectedKeywordId = null;
-        this.selectedSpeciesId = null;
-    }
+  constructor() {
+    this.stage = document.querySelector("#particle-layer");
+    this.filters = document.querySelector("#species-filters");
+    this.panel = {
+      container: document.querySelector("#definition-panel"),
+      title: document.querySelector("#definition-title"),
+      definition: document.querySelector("#definition-text"),
+      species: document.querySelector("#definition-species"),
+    };
+    this.status = document.querySelector("#app-status");
+  }
 
-    async start() {
-        try {
-            const data = await new DataRepository().load();
-            this.species = new Map(data.species.map((species) => [species.id, species]));
-            document.querySelector("#base-image").src = BASE_IMAGE_PATH;
-            this.renderSpeciesControls(data.species);
-            this.particleSystem = new ParticleSystem(this.stage, data, (particle) => this.selectParticle(particle));
-            this.particleSystem.mount();
-        } catch (error) {
-            console.error("No se pudo iniciar el sistema de partículas.", error);
-            this.errorMessage.textContent = `${error.message} Abre la página con un servidor local para cargar los archivos CSV.`;
-            this.errorMessage.hidden = false;
-        }
-    }
-
-    renderSpeciesControls(species) {
-        this.speciesControls.replaceChildren();
-
-        for (const item of species) {
-            const button = document.createElement("button");
-            button.className = "species-button";
-            button.type = "button";
-            button.textContent = item.nombre;
-            button.dataset.speciesId = item.id;
-            button.setAttribute("aria-pressed", "false");
-            button.addEventListener("click", () => this.selectSpecies(item.id));
-            this.speciesControls.append(button);
-        }
-    }
-
-    selectParticle(particle) {
-        this.selectedKeywordId =
-            this.selectedKeywordId === particle.keyword.id ? null : particle.keyword.id;
-
-        if (this.selectedKeywordId) {
-            document.querySelector(".keyword-card").hidden = false;
-            this.descriptionTitle.textContent = particle.keyword.keyword;
-            this.descriptionText.textContent = particle.keyword.definicion;
-            const speciesIds = particle.speciesIds;
-            const speciesNames = Array.from(speciesIds, (id) => this.species.get(id)?.nombre).filter(Boolean);
-            const speciesNote = document.querySelector("#keyword-species");
-            speciesNote.textContent = speciesNames.length
-                ? `Especies: ${speciesNames.join(" · ")}`
-                : "Sin especie asignada en keyword_especie.csv.";
-            speciesNote.hidden = false;
-        } else {
-            this.resetDescription();
-        }
-
-        this.particleSystem.update(this.selectedKeywordId, this.selectedSpeciesId);
-    }
-
-    selectSpecies(speciesId) {
-        this.selectedSpeciesId = this.selectedSpeciesId === speciesId ? null : speciesId;
-
-        for (const button of this.speciesControls.querySelectorAll(".species-button")) {
-            const isSelected = button.dataset.speciesId === this.selectedSpeciesId;
-            button.classList.toggle("is-active", isSelected);
-            button.setAttribute("aria-pressed", String(isSelected));
-        }
-
-        this.particleSystem.update(this.selectedKeywordId, this.selectedSpeciesId);
-    }
-
-    resetDescription() {
-        document.querySelector(".keyword-card").hidden = true;
-        this.descriptionTitle.textContent = "Explora las partículas";
-        this.descriptionText.textContent = "Selecciona un punto para consultar su keyword y las especies relacionadas.";
-        document.querySelector("#keyword-species").hidden = true;
-    }
+  async start() {
+    const data = await DataRepository.load();
+    const system = new ParticleSystem(data);
+    system.mount(this.stage, this.filters, this.panel);
+    this.status.textContent = `${data.particles.length} partículas · ${data.species.size} especies`;
+  }
 }
 
-function randomBetween(min, max) {
-    return Math.random() * (max - min) + min;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const app = new ParticleApp();
-    app.start();
+const app = new ParticleApp();
+app.start().catch((error) => {
+  console.error("No se pudo iniciar el sistema de partículas.", error);
+  const status = document.querySelector("#app-status");
+  status.classList.add("is-error");
+  status.textContent = `No se pudo cargar la visualización: ${error.message}`;
 });
