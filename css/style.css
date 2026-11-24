@@ -156,14 +156,19 @@ h1 {
   transform: scale(1.1);
 }
 
-.particle-shape:focus-visible {
+.particle-shape:focus {
   outline: none;
+}
+
+.particle-shape:focus-visible {
   stroke: #fff;
   stroke-width: 1.5px;
 }
 
 .particle-shape.is-selected {
   fill: #fff !important;
+  stroke: #fff;
+  stroke-width: 1.5px;
 }
 
 .particle-shape.is-related {
@@ -171,7 +176,7 @@ h1 {
 }
 
 .particle-shape.is-selected {
-  filter: drop-shadow(0 0 5px rgb(0 219 255 / 85%));
+  filter: none;
   opacity: 1;
   transform: scale(1.15);
 }

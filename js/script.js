@@ -1,6 +1,6 @@
 const PARTICLE_SIZE_MIN = 1.7; // Minimum random scale applied to each SVG particle.
 const PARTICLE_SIZE_MAX = 1.7; // Maximum random scale applied to each SVG particle.
-const PARTICLE_MIN_RADIUS = 3; // Minimum final radius in SVG units.
+const PARTICLE_MIN_RADIUS = 3.5; // Minimum final radius in SVG units.
 
 class CsvParser {
   static parse(text) {
@@ -268,6 +268,13 @@ class ParticleSystem {
   }
 
   selectKeyword(keywordId, panel) {
+    if (this.selectedKeywordId === keywordId) {
+      this.selectedKeywordId = null;
+      panel.container.hidden = true;
+      this.renderParticleStates();
+      return;
+    }
+
     this.selectedKeywordId = keywordId;
     const keyword = this.particlesById.get(keywordId).keyword;
     const speciesNames = [...keyword.speciesIds]
