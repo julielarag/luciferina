@@ -163,6 +163,14 @@ h1 {
 }
 
 .particle-shape.is-selected {
+  fill: #fff !important;
+}
+
+.particle-shape.is-related {
+  fill: #b6f8ff !important;
+}
+
+.particle-shape.is-selected {
   filter: drop-shadow(0 0 5px rgb(0 219 255 / 85%));
   opacity: 1;
   transform: scale(1.15);
@@ -183,6 +191,8 @@ h1 {
 .particle-shape.is-species-muted {
   filter: none;
   opacity: 0.12;
+  pointer-events: none;
+  cursor: default;
 }
 
 .particle-shape.is-species-muted.is-selected {

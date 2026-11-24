@@ -1,5 +1,6 @@
-const PARTICLE_SIZE_MIN = 2.28; // Minimum random scale applied to each SVG particle.
-const PARTICLE_SIZE_MAX = 1.28; // Maximum random scale applied to each SVG particle.
+const PARTICLE_SIZE_MIN = 1.7; // Minimum random scale applied to each SVG particle.
+const PARTICLE_SIZE_MAX = 1.7; // Maximum random scale applied to each SVG particle.
+const PARTICLE_MIN_RADIUS = 3; // Minimum final radius in SVG units.
 
 class CsvParser {
   static parse(text) {
@@ -174,15 +175,19 @@ class Particle {
       if (!Number.isFinite(radius) || radius <= 0) {
         throw new Error(`La partícula ${this.id} no tiene un radio válido.`);
       }
-      shape.setAttribute("r", String(radius * scale));
+      shape.setAttribute("r", String(Math.max(radius * scale, PARTICLE_MIN_RADIUS)));
     } else {
       const radiusX = Number(shape.getAttribute("rx"));
       const radiusY = Number(shape.getAttribute("ry"));
       if (!Number.isFinite(radiusX) || !Number.isFinite(radiusY) || radiusX <= 0 || radiusY <= 0) {
         throw new Error(`La partícula ${this.id} no tiene radios válidos.`);
       }
-      shape.setAttribute("rx", String(radiusX * scale));
-      shape.setAttribute("ry", String(radiusY * scale));
+      const scaledRadiusX = radiusX * scale;
+      const scaledRadiusY = radiusY * scale;
+      const minimumRadius = Math.min(scaledRadiusX, scaledRadiusY);
+      const radiusScale = Math.max(1, PARTICLE_MIN_RADIUS / minimumRadius);
+      shape.setAttribute("rx", String(scaledRadiusX * radiusScale));
+      shape.setAttribute("ry", String(scaledRadiusY * radiusScale));
     }
 
     shape.classList.add("particle-shape");
@@ -191,6 +196,7 @@ class Particle {
     shape.setAttribute("tabindex", "0");
     shape.setAttribute("aria-label", `${keyword.name}: ${keyword.definition}`);
     shape.setAttribute("aria-pressed", "false");
+    shape.setAttribute("aria-disabled", "false");
 
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
     title.textContent = keyword.name;
@@ -241,15 +247,24 @@ class ParticleSystem {
   bindParticleEvents(panel) {
     for (const particle of this.particles) {
       particle.element.addEventListener("click", () => {
+        if (!this.isParticleAvailable(particle)) return;
         this.selectKeyword(particle.id, panel);
       });
       particle.element.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          if (!this.isParticleAvailable(particle)) return;
           this.selectKeyword(particle.id, panel);
         }
       });
     }
+  }
+
+  isParticleAvailable(particle) {
+    return (
+      this.selectedSpeciesId === null ||
+      particle.keyword.speciesIds.has(this.selectedSpeciesId)
+    );
   }
 
   selectKeyword(keywordId, panel) {
@@ -282,6 +297,8 @@ class ParticleSystem {
       shape.classList.toggle("is-related", isRelated);
       shape.classList.toggle("is-species-match", isSpeciesMatch);
       shape.classList.toggle("is-species-muted", isSpeciesMuted);
+      shape.setAttribute("tabindex", isSpeciesMuted ? "-1" : "0");
+      shape.setAttribute("aria-disabled", String(isSpeciesMuted));
       shape.setAttribute("aria-pressed", String(isSelected));
     }
 
