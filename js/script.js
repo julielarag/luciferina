@@ -174,6 +174,10 @@ class Particle {
     this.element = shape;
     this.keyword = keyword;
     this.id = keyword.id;
+    this.originalPosition = {
+      x: shape.getAttribute("cx"),
+      y: shape.getAttribute("cy"),
+    };
 
     const scale = PARTICLE_SIZE_MIN + Math.random() * (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN);
     if (shape.tagName.toLowerCase() === "circle") {
@@ -216,12 +220,16 @@ class ParticleSystem {
     this.species = species;
     this.relatedKeywords = relatedKeywords;
     this.svg = svg;
+    this.desktopViewBox = svg.getAttribute("viewBox");
+    this.mobileLayout = window.matchMedia("(max-width: 760px)");
+    this.mobilePositions = null;
     this.selectedKeywordId = null;
     this.selectedSpeciesId = null;
     this.particlesById = new Map(particles.map((particle) => [particle.id, particle]));
   }
 
   mount(stage, filtersElement, panel) {
+    this.stageElement = stage.closest(".stage");
     this.svg.setAttribute("preserveAspectRatio", "none");
     this.svg.setAttribute("aria-label", "Partículas interactivas de keywords");
     this.svg.setAttribute("role", "group");
@@ -229,6 +237,85 @@ class ParticleSystem {
     this.renderSpeciesFilters(filtersElement);
     this.bindParticleEvents(panel);
     this.renderParticleStates();
+    this.updateLayout();
+    this.layoutObserver = new ResizeObserver(() => this.updateLayout());
+    this.layoutObserver.observe(this.stageElement);
+  }
+
+  updateLayout() {
+    if (!this.mobileLayout.matches) {
+      this.svg.setAttribute("viewBox", this.desktopViewBox);
+      this.stageElement.style.height = "";
+      for (const particle of this.particles) {
+        particle.element.setAttribute("cx", particle.originalPosition.x);
+        particle.element.setAttribute("cy", particle.originalPosition.y);
+      }
+      return;
+    }
+
+    const columnWidth = Math.max(1, this.stageElement.clientWidth);
+    if (!this.mobilePositions) {
+      const baseWidth = Math.max(300, columnWidth - 15);
+      const minimumHeight = Math.ceil(this.particles.length / 6) * 30;
+      this.mobilePositions = this.createRandomMobileLayout(baseWidth, minimumHeight);
+    }
+
+    const { width, height, points } = this.mobilePositions;
+    this.svg.setAttribute("viewBox", `0 0 ${columnWidth} ${height}`);
+    this.stageElement.style.height = `${height}px`;
+
+    this.particles.forEach((particle, index) => {
+      particle.element.setAttribute("cx", String(points[index].x * (columnWidth / width)));
+      particle.element.setAttribute("cy", String(points[index].y));
+    });
+  }
+
+  createRandomMobileLayout(width, minimumHeight) {
+    const points = [];
+    let height = minimumHeight;
+    let seed = 2166136261;
+    for (const particle of this.particles) {
+      seed = Math.imul(seed ^ particle.id, 16777619) >>> 0;
+    }
+
+    // A fixed seed keeps the mobile scatter identical across page reloads.
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+
+    for (const particle of this.particles) {
+      const bounds = particle.element.getBBox();
+      const radius = Math.max(bounds.width, bounds.height) / 2;
+      const margin = Math.max(18, radius + 10);
+      let point = null;
+
+      while (!point) {
+        for (let attempt = 0; attempt < 400; attempt += 1) {
+          const candidate = {
+            x: margin + random() * (width - margin * 2),
+            y: margin + random() * (height - margin * 2),
+            radius,
+          };
+          const hasSpace = points.every(
+            (other) =>
+              Math.hypot(candidate.x - other.x, candidate.y - other.y) >=
+              candidate.radius + other.radius + 18
+          );
+
+          if (hasSpace) {
+            point = candidate;
+            break;
+          }
+        }
+
+        if (!point) height += 44;
+      }
+
+      points.push(point);
+    }
+
+    return { width, height, points };
   }
 
   renderSpeciesFilters(container) {
