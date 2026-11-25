@@ -1,6 +1,7 @@
 const PARTICLE_SIZE_MIN = 1.7; // Minimum random scale applied to each SVG particle.
 const PARTICLE_SIZE_MAX = 1.7; // Maximum random scale applied to each SVG particle.
 const PARTICLE_MIN_RADIUS = 3.5; // Minimum final radius in SVG units.
+const PARTICLE_HITBOX_PADDING = 8;
 const SPECIES_IMAGES = new Map([
   [1, "img/hongo.png"],
   [2, "img/luciernaga.png"],
@@ -195,16 +196,6 @@ class Particle {
       shape.setAttribute("ry", String(scaledRadiusY * radiusScale));
     }
 
-    this.hitArea = shape.cloneNode(false);
-    this.hitArea.removeAttribute("class");
-    this.hitArea.setAttribute("fill", "none");
-    this.hitArea.setAttribute("stroke", "transparent");
-    this.hitArea.setAttribute("stroke-width", "10");
-    this.hitArea.setAttribute("vector-effect", "non-scaling-stroke");
-    this.hitArea.setAttribute("pointer-events", "stroke");
-    this.hitArea.setAttribute("aria-hidden", "true");
-    shape.before(this.hitArea);
-
     shape.classList.add("particle-shape");
     shape.setAttribute("data-keyword-id", String(this.id));
     shape.setAttribute("role", "button");
@@ -269,12 +260,6 @@ class ParticleSystem {
 
   bindParticleEvents(panel) {
     for (const particle of this.particles) {
-      const handleClick = () => {
-        if (!this.isParticleAvailable(particle)) return;
-        this.selectKeyword(particle.id, panel);
-      };
-      particle.element.addEventListener("click", handleClick);
-      particle.hitArea.addEventListener("click", handleClick);
       particle.element.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -283,6 +268,50 @@ class ParticleSystem {
         }
       });
     }
+
+    this.svg.closest("main").addEventListener("click", (event) => {
+      const targetElement = event.target instanceof Element ? event.target : null;
+      const target = targetElement?.closest(".particle-shape");
+      const targetParticle = target
+        ? this.particlesById.get(Number(target.getAttribute("data-keyword-id")))
+        : null;
+
+      if (targetParticle && !this.isParticleAvailable(targetParticle)) return;
+      if (
+        !targetParticle &&
+        targetElement !== event.currentTarget &&
+        targetElement !== this.svg &&
+        targetElement !== this.svg.parentElement
+      ) {
+        return;
+      }
+
+      const particle = targetParticle ?? this.findParticleAtPoint(event.clientX, event.clientY);
+      if (particle) this.selectKeyword(particle.id, panel);
+    });
+  }
+
+  findParticleAtPoint(x, y) {
+    let nearestParticle = null;
+    let nearestDistance = Infinity;
+
+    for (const particle of this.particles) {
+      if (!this.isParticleAvailable(particle)) continue;
+
+      const bounds = particle.element.getBoundingClientRect();
+      const radiusX = bounds.width / 2 + PARTICLE_HITBOX_PADDING;
+      const radiusY = bounds.height / 2 + PARTICLE_HITBOX_PADDING;
+      const normalizedX = (x - (bounds.left + bounds.width / 2)) / radiusX;
+      const normalizedY = (y - (bounds.top + bounds.height / 2)) / radiusY;
+      const distance = normalizedX ** 2 + normalizedY ** 2;
+
+      if (distance <= 1 && distance < nearestDistance) {
+        nearestParticle = particle;
+        nearestDistance = distance;
+      }
+    }
+
+    return nearestParticle;
   }
 
   isParticleAvailable(particle) {
@@ -326,7 +355,6 @@ class ParticleSystem {
       shape.setAttribute("tabindex", isSpeciesMuted ? "-1" : "0");
       shape.setAttribute("aria-disabled", String(isSpeciesMuted));
       shape.setAttribute("aria-pressed", String(isSelected));
-      particle.hitArea.setAttribute("pointer-events", isSpeciesMuted ? "none" : "stroke");
     }
 
     document.querySelectorAll(".species-button").forEach((button) => {
