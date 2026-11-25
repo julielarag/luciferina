@@ -45,21 +45,25 @@ button {
   min-width: 220px;
 }
 
-.eyebrow,
-.panel-eyebrow {
-  margin: 0 0 8px;
-  color: var(--particle-color);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 h1 {
   margin: 0;
   font-size: clamp(1.35rem, 2.2vw, 2rem);
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: -0.035em;
+}
+
+.home-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-link span {
+  display: block;
+}
+
+.home-link:hover,
+.home-link:focus-visible {
+  color: var(--particle-color);
 }
 
 .instructions {
@@ -77,15 +81,30 @@ h1 {
 }
 
 .species-button {
-  min-height: 38px;
-  padding: 8px 13px;
+  display: flex;
+  width: 128px;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
   border: 1px solid rgb(187 221 229 / 24%);
-  border-radius: 999px;
+  border-radius: 14px;
   background: rgb(255 255 255 / 3%);
   color: #c5d8dd;
   cursor: pointer;
   font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.species-button img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 
 .species-button:hover,
@@ -251,18 +270,11 @@ h1 {
   font-weight: 500;
 }
 
-.definition-text,
-.definition-species {
+.definition-text {
   margin: 0;
   color: #b6cbd0;
   font-size: 0.84rem;
   line-height: 1.55;
-}
-
-.definition-species {
-  margin-top: 13px;
-  color: #7e9ca4;
-  font-size: 0.72rem;
 }
 
 @media (max-width: 760px) {
@@ -281,9 +293,14 @@ h1 {
   }
 
   .species-button {
-    min-height: 34px;
-    padding: 7px 10px;
+    min-height: 100px;
+    padding: 7px 8px;
     font-size: 0.68rem;
+  }
+
+  .species-button img {
+    width: 56px;
+    height: 56px;
   }
 
   .visualization {

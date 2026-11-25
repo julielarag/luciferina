@@ -1,6 +1,11 @@
 const PARTICLE_SIZE_MIN = 1.7; // Minimum random scale applied to each SVG particle.
 const PARTICLE_SIZE_MAX = 1.7; // Maximum random scale applied to each SVG particle.
 const PARTICLE_MIN_RADIUS = 3.5; // Minimum final radius in SVG units.
+const SPECIES_IMAGES = new Map([
+  [1, "img/hongo.png"],
+  [2, "img/luciernaga.png"],
+  [3, "img/dinoflagelado.png"],
+]);
 
 class CsvParser {
   static parse(text) {
@@ -190,6 +195,16 @@ class Particle {
       shape.setAttribute("ry", String(scaledRadiusY * radiusScale));
     }
 
+    this.hitArea = shape.cloneNode(false);
+    this.hitArea.removeAttribute("class");
+    this.hitArea.setAttribute("fill", "none");
+    this.hitArea.setAttribute("stroke", "transparent");
+    this.hitArea.setAttribute("stroke-width", "10");
+    this.hitArea.setAttribute("vector-effect", "non-scaling-stroke");
+    this.hitArea.setAttribute("pointer-events", "stroke");
+    this.hitArea.setAttribute("aria-hidden", "true");
+    shape.before(this.hitArea);
+
     shape.classList.add("particle-shape");
     shape.setAttribute("data-keyword-id", String(this.id));
     shape.setAttribute("role", "button");
@@ -232,7 +247,15 @@ class ParticleSystem {
       button.type = "button";
       button.className = "species-button";
       button.dataset.speciesId = String(species.id);
-      button.textContent = species.name;
+      const imagePath = SPECIES_IMAGES.get(species.id);
+      if (!imagePath) throw new Error(`No hay una imagen configurada para la especie ${species.id}.`);
+      const image = document.createElement("img");
+      image.src = imagePath;
+      image.alt = "";
+      image.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = species.name;
+      button.append(image, label);
       button.setAttribute("aria-pressed", "false");
       button.addEventListener("click", () => {
         this.selectedSpeciesId =
@@ -246,10 +269,12 @@ class ParticleSystem {
 
   bindParticleEvents(panel) {
     for (const particle of this.particles) {
-      particle.element.addEventListener("click", () => {
+      const handleClick = () => {
         if (!this.isParticleAvailable(particle)) return;
         this.selectKeyword(particle.id, panel);
-      });
+      };
+      particle.element.addEventListener("click", handleClick);
+      particle.hitArea.addEventListener("click", handleClick);
       particle.element.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -277,15 +302,9 @@ class ParticleSystem {
 
     this.selectedKeywordId = keywordId;
     const keyword = this.particlesById.get(keywordId).keyword;
-    const speciesNames = [...keyword.speciesIds]
-      .map((speciesId) => this.species.get(speciesId)?.name)
-      .filter(Boolean);
 
     panel.title.textContent = keyword.name;
     panel.definition.textContent = keyword.definition;
-    panel.species.textContent = speciesNames.length
-      ? `Especies: ${speciesNames.join(" · ")}`
-      : "Sin especie asignada";
     panel.container.hidden = false;
     this.renderParticleStates();
   }
@@ -307,6 +326,7 @@ class ParticleSystem {
       shape.setAttribute("tabindex", isSpeciesMuted ? "-1" : "0");
       shape.setAttribute("aria-disabled", String(isSpeciesMuted));
       shape.setAttribute("aria-pressed", String(isSelected));
+      particle.hitArea.setAttribute("pointer-events", isSpeciesMuted ? "none" : "stroke");
     }
 
     document.querySelectorAll(".species-button").forEach((button) => {
@@ -325,7 +345,6 @@ class ParticleApp {
       container: document.querySelector("#definition-panel"),
       title: document.querySelector("#definition-title"),
       definition: document.querySelector("#definition-text"),
-      species: document.querySelector("#definition-species"),
     };
     this.status = document.querySelector("#app-status");
   }
