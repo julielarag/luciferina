@@ -1,0 +1,84 @@
+.space-3d .app-shell {
+  min-height: 100svh;
+}
+
+.space-3d .visualization {
+  display: block;
+  min-height: 400px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.space-3d .stage {
+  width: 100%;
+  height: max(400px, calc(100svh - 220px));
+  margin: 0;
+  aspect-ratio: auto;
+}
+
+.space-3d .particle-layer {
+  overflow: hidden;
+}
+
+.space-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+}
+
+/* Keyboard targets follow keyword nuclei projected from WebGL. */
+.keyword-targets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.keyword-target {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: none;
+}
+
+.keyword-target:focus-visible {
+  outline: 1px solid #e7f7fa;
+  outline-offset: 3px;
+}
+
+.space-3d .particle-controls {
+  position: fixed;
+  z-index: 4;
+  bottom: 54px;
+  left: 24px;
+}
+
+.space-3d .particle-controls .dg .close-button {
+  position: relative;
+}
+
+@media (max-width: 760px) {
+  .space-3d .stage {
+    height: max(400px, calc(100svh - 300px));
+  }
+
+  .space-3d .species-button {
+    width: min(128px, calc((100vw - 48px) / 3));
+  }
+
+  .space-3d .particle-controls {
+    position: absolute;
+    bottom: auto;
+    top: 8px;
+    right: 0;
+    left: auto;
+  }
+}

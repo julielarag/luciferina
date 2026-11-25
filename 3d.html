@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07131a">
+    <title>Red de partículas 3D — Luciferina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/3d.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "dat.gui": "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="js/3d.js"></script>
+  </head>
+  <body class="space-3d">
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="intro">
+          <h1>
+            <a class="home-link" href="index.html">
+              <span>Redes inteligentes detrás</span>
+              <span>de la bioluminiscencia</span>
+            </a>
+          </h1>
+        </div>
+        <nav class="species-filters" id="species-filters" aria-label="Filtrar por especie"></nav>
+      </header>
+
+      <section class="visualization" aria-label="Visualización de keywords">
+        <div class="stage" id="particle-stage">
+          <div class="particle-layer" id="particle-layer"></div>
+        </div>
+      </section>
+
+      <p class="app-status" id="app-status" role="status">Cargando datos y partículas…</p>
+
+      <aside class="definition-panel" id="definition-panel" aria-live="polite" hidden>
+        <h2 id="definition-title"></h2>
+        <p class="definition-text" id="definition-text"></p>
+      </aside>
+    </main>
+  </body>
+</html>
