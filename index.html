@@ -415,12 +415,11 @@
       <h1 class="sr-only">Luciferina</h1>
       <div class="logo-slot" id="logo-slot" role="img" aria-label="Luciferina, formado por partículas"></div>
       <p class="welcome-text">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-        exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-        dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+        Explora las redes inteligentes detrás de la bioluminiscencia. 
+        Conoce los organismos, sus relaciones y las 
+        conexiones que hacen posible este fenómeno.
       </p>
-      <button class="cta" id="cta" type="button">Explora las redes</button>
+      <button class="cta" id="cta" type="button">COMIENZA A EXPLORAR</button>
     </main>
 
     <div class="keyword-targets" id="keyword-targets" role="group" aria-label="Partículas interactivas de keywords"></div>
@@ -452,24 +451,24 @@
 
       const settings = {
         // Partículas
-        planktonCount: isSmallScreen ? 900 : 2400, // bioluminiscencia adicional
-        planktonSize: 1,
-        keywordSize: isSmallScreen ? 5 : 6.5,
-        ambientSize: 1,
+        planktonCount: 0, // bioluminiscencia adicional
+        planktonSize: 0.8,
+        keywordSize: 6.5,
+        ambientSize: 2,
         // Movimiento
-        driftSpeed: 0.6,
-        driftAmplitude: 10,
-        disperseDuration: 2.4,
-        pointerRadius: isSmallScreen ? 90 : 130,
-        pushStrength: 1,
-        springBack: 1,
+        driftSpeed: 0.9,
+        driftAmplitude: 5,
+        disperseDuration: 1,
+        pointerRadius: 130,
+        pushStrength: 0.15,
+        springBack: 0.2,
         // Brillo e intensidad
-        baseGlow: 0.35,
-        keywordGlow: 1,
-        activeGlow: 1.6,
-        bioIntensity: 1,
-        bioDecay: 1.2,
-        sensitivity: 1,
+        baseGlow: 0.12,
+        keywordGlow: 3,
+        activeGlow: 4,
+        bioIntensity: 0.45,
+        bioDecay: 0.95,
+        sensitivity: 3.75,
       };
 
       const COLORS = {
