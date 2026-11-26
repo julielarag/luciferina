@@ -445,6 +445,18 @@
         [3, "img/dinoflagelado.png"],
       ]);
       const HITBOX_PADDING = 8;
+      const SIERRA_MADRE_ORIENTAL_ID = 24;
+      const SIERRA_MADRE_ORIENTAL_SCALE = 0.75;
+      const ETAPA_FOTOSINTETICA_ID = 54;
+      const ETAPA_FOTOSINTETICA_SCALE = 0.8;
+      const CULTURA_ID = 16;
+      const CULTURA_SCALE = 0.8;
+      const FEATURED_KEYWORD_IDS = new Set([12, 46, 93, 107, 108]);
+      const KEYWORD_SIZE_OVERRIDES = new Map([
+        [SIERRA_MADRE_ORIENTAL_ID, SIERRA_MADRE_ORIENTAL_SCALE],
+        [ETAPA_FOTOSINTETICA_ID, ETAPA_FOTOSINTETICA_SCALE],
+        [CULTURA_ID, CULTURA_SCALE],
+      ]);
       const TAU = Math.PI * 2;
       const isSmallScreen = matchMedia("(max-width: 760px)").matches;
       const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -647,6 +659,7 @@
           this.selectedSpeciesId = null;
           this.hoveredId = null;
           this.focusedId = null;
+          this.interactionsEnabled = false;
 
           this.progress = 1; // 0 = logotipo, 1 = dispersas
           this.targetProgress = 0; // la entrada reúne las partículas en la palabra
@@ -701,6 +714,9 @@
           });
           this.keywordParticles = this.anchored.filter((particle) => particle.keyword);
           this.keywordParticleById = new Map(this.keywordParticles.map((particle) => [particle.id, particle]));
+          const referenceParticle = this.keywordParticleById.get(ETAPA_FOTOSINTETICA_ID);
+          if (!referenceParticle) throw new Error("No se encontró la keyword «Etapa fotosintética».");
+          this.featuredKeywordRadius = (referenceParticle.rx + referenceParticle.ry) / 2;
         }
 
         resize() {
@@ -808,6 +824,7 @@
         }
 
         keywordAt(x, y) {
+          if (!this.interactionsEnabled) return null;
           let nearest = null;
           let nearestDistance = Infinity;
           for (const particle of this.keywordParticles) {
@@ -943,7 +960,12 @@
             particle.y = lerp(homeY, targetY, local) + particle.curveY * arc
               + Math.cos(time * 0.7 + particle.phase * 1.3) * wander * 0.8 + particle.oy;
 
-            const scale = lerp(logoScale, isKeyword ? keywordScale : ambientScale, local);
+            const particleRadius = (particle.rx + particle.ry) / 2;
+            const keywordSizeMultiplier = FEATURED_KEYWORD_IDS.has(particle.id)
+              ? this.featuredKeywordRadius / particleRadius
+              : KEYWORD_SIZE_OVERRIDES.get(particle.id) ?? 1;
+            const targetScale = isKeyword ? keywordScale * keywordSizeMultiplier : ambientScale;
+            const scale = lerp(logoScale, targetScale, local);
             particle.drx = Math.max(minimumRadius, particle.rx * scale);
             particle.dry = Math.max(minimumRadius, particle.ry * scale);
             particle.drot = (particle.rot + time * particle.spin) * local;
@@ -1172,6 +1194,8 @@
           document.body.classList.toggle("is-exploring", exploring);
           this.welcome.inert = exploring;
           document.querySelector("#topbar").inert = !exploring;
+          document.querySelector("#keyword-targets").inert = !exploring;
+          this.scene.interactionsEnabled = exploring;
         }
 
         explore() {
@@ -1186,6 +1210,7 @@
 
         selectKeyword(id) {
           const scene = this.scene;
+          if (!scene.interactionsEnabled) return;
           const keyword = this.data.keywords.get(id);
           if (!keyword || !scene.isAvailable(keyword)) return;
           scene.selectedKeywordId = scene.selectedKeywordId === id ? null : id;
