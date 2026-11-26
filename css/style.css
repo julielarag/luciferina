@@ -278,6 +278,10 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  body {
+    min-width: 0;
+  }
+
   .app-shell {
     padding: 20px 18px 28px;
   }
@@ -288,34 +292,41 @@ h1 {
   }
 
   .species-filters {
-    justify-content: flex-start;
+    align-self: flex-end;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
   .species-button {
+    width: 86px;
     min-height: 100px;
-    padding: 7px 8px;
+    padding: 6px;
     font-size: 0.68rem;
   }
 
   .species-button img {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
   }
 
   .visualization {
     display: block;
-    margin: auto -18px;
-    padding: 52px 0 100px;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-color: rgb(0 219 255 / 35%) transparent;
+    width: auto;
+    margin: 0 -18px;
+    padding: 24px 0 100px;
+    overflow: visible;
   }
 
   .stage {
-    width: 720px;
+    width: 100%;
     max-width: none;
     margin: 0 auto;
+    aspect-ratio: auto;
+  }
+
+  .inactive-artwork {
+    display: none;
   }
 
   .definition-panel {
