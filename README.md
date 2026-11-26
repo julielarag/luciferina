@@ -17,12 +17,23 @@ los CSV y el SVG con `fetch`.
 
 ## Interacción y ajustes
 
-- Pasa el cursor por una partícula para ver su glow; haz clic para ampliar la
-  partícula un 15%, iluminar sus keywords relacionadas y leer su definición.
-- Usa los botones superiores para resaltar por especie; vuelve a pulsar el
-  botón activo para quitar el filtro.
-- Ajusta el rango de escala aleatoria en `PARTICLE_SIZE_MIN` y
-  `PARTICLE_SIZE_MAX`; `PARTICLE_MIN_RADIUS` establece el radio mínimo visible.
+`index.html` es autocontenido (estilos y script en línea) y dibuja todo en un
+canvas 2D:
+
+- **Bienvenida:** las 757 formas elípticas de `img/logotipo_luciferina.svg`
+  se reúnen para formar "Luciferina"; debajo hay un párrafo y el botón
+  "Explora las redes". Al pulsarlo, las partículas se dispersan por la pantalla
+  y aparecen los filtros por especie.
+- **Keywords:** 151 de esas formas son keywords. Hover → brillo y escala 110%;
+  clic → partícula blanca al 115%, líneas hacia sus keywords relacionadas
+  (que se iluminan) y panel con la definición. Esc o un segundo clic la
+  deseleccionan. También funcionan con Tab y Enter/Espacio.
+- **Bioluminiscencia:** una capa extra de plancton casi invisible destella y es
+  arrastrada al pasar el cursor (o el dedo), como dinoflagelados en el agua;
+  el logotipo y las keywords también reaccionan y regresan a su sitio.
+- **Controles:** abre `http://localhost:8000/?gui` para mostrar dat.gui y
+  ajustar número de partículas, tamaños, movimiento, brillo, intensidad y
+  duración del destello, o volver a formar el logotipo.
 
 Los datos se leen de `data/especies.csv`, `data/keywords.csv` y
 `data/keyword_especie.csv`.

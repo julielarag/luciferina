@@ -4,42 +4,1324 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#07131a">
-    <title>Red de partículas — Luciferina</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script type="module" src="js/script.js"></script>
+    <title>Luciferina — Redes de bioluminiscencia</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+        color: #e7f7fa;
+        background: #07131a;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        --particle-color: #00dbff;
+        --muted-text: #99b1b8;
+        --footer-height: 56px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      body {
+        min-width: 320px;
+        background:
+          radial-gradient(ellipse at 50% 46%, rgb(0 219 255 / 6%), transparent 55%),
+          #07131a;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      /* Canvas: todas las partículas (logotipo, keywords y plancton). */
+      #scene {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #scene.is-pointer {
+        cursor: pointer;
+      }
+
+      /* Encabezado visible tras explorar. */
+      .topbar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+        z-index: 2;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 28px;
+        padding: 28px 32px 0;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: opacity 600ms ease, transform 600ms ease, visibility 0s linear 600ms;
+      }
+
+      body.is-exploring .topbar {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition-delay: 900ms, 900ms, 0s;
+      }
+
+      .topbar > * {
+        pointer-events: auto;
+      }
+
+      .topbar h2 {
+        margin: 0;
+        font-size: clamp(1.35rem, 2.2vw, 2rem);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+
+      .home-link {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .home-link span {
+        display: block;
+      }
+
+      .home-link:hover,
+      .home-link:focus-visible {
+        color: var(--particle-color);
+      }
+
+      .species-filters {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        max-width: 670px;
+      }
+
+      .species-button {
+        display: flex;
+        width: 128px;
+        min-height: 112px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 8px;
+        border: 1px solid rgb(187 221 229 / 24%);
+        border-radius: 14px;
+        background: rgb(7 19 26 / 55%);
+        color: #c5d8dd;
+        cursor: pointer;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        text-align: center;
+        backdrop-filter: blur(6px);
+        transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+
+      .species-button img {
+        display: block;
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+      }
+
+      .species-button:hover,
+      .species-button:focus-visible {
+        border-color: rgb(0 219 255 / 70%);
+        color: #fff;
+      }
+
+      .species-button.is-active {
+        border-color: var(--particle-color);
+        background: rgb(0 219 255 / 12%);
+        color: var(--particle-color);
+      }
+
+      /* Pantalla de bienvenida: el canvas dibuja el logotipo dentro de .logo-slot. */
+      .welcome {
+        position: fixed;
+        inset: 0 0 var(--footer-height);
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        padding: 24px 16px;
+        text-align: center;
+        pointer-events: none;
+        transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms;
+      }
+
+      body.is-exploring .welcome {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(12px);
+      }
+
+      .logo-slot {
+        width: min(100%, 1100px);
+        aspect-ratio: 1550.31 / 159.15;
+        margin: 0 0 12px;
+      }
+
+      .welcome-text {
+        max-width: 580px;
+        margin: 0;
+        color: #b6cbd0;
+        font-size: clamp(0.9rem, 1.4vw, 1.02rem);
+        line-height: 1.65;
+        text-wrap: pretty;
+      }
+
+      .cta {
+        padding: 14px 30px;
+        border: 1px solid rgb(0 219 255 / 65%);
+        border-radius: 999px;
+        background: rgb(0 219 255 / 10%);
+        color: #e7f7fa;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        pointer-events: auto;
+        box-shadow: 0 0 24px rgb(0 219 255 / 18%);
+        transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+      }
+
+      .cta:hover,
+      .cta:focus-visible {
+        background: rgb(0 219 255 / 22%);
+        box-shadow: 0 0 34px rgb(0 219 255 / 38%);
+        color: #fff;
+        outline: none;
+      }
+
+      /* Pie fijo con la instrucción. */
+      .footer {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2;
+        display: flex;
+        min-height: var(--footer-height);
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 10px 16px 14px;
+        pointer-events: none;
+        text-align: center;
+      }
+
+      .hint {
+        margin: 0;
+        color: #c5d8dd;
+        font-size: 0.85rem;
+      }
+
+      .app-status {
+        margin: 0;
+        color: #6f8a92;
+        font-size: 0.68rem;
+      }
+
+      .app-status:empty {
+        display: none;
+      }
+
+      .app-status.is-error {
+        max-width: min(560px, calc(100vw - 32px));
+        color: #ffb7a9;
+        font-size: 0.8rem;
+      }
+
+      .definition-panel {
+        position: fixed;
+        right: 24px;
+        bottom: calc(var(--footer-height) + 8px);
+        z-index: 3;
+        width: min(370px, calc(100vw - 32px));
+        max-height: min(45vh, 360px);
+        padding: 20px 22px;
+        overflow-y: auto;
+        border: 1px solid rgb(0 219 255 / 30%);
+        border-radius: 12px;
+        background: rgb(7 19 26 / 94%);
+        box-shadow: 0 12px 40px rgb(0 0 0 / 28%), 0 0 24px rgb(0 219 255 / 7%);
+        backdrop-filter: blur(14px);
+      }
+
+      .definition-panel[hidden] {
+        display: none;
+      }
+
+      .definition-panel h2 {
+        margin: 0 0 10px;
+        color: #f0fbfd;
+        font-size: 1.1rem;
+        font-weight: 500;
+      }
+
+      .definition-text {
+        margin: 0;
+        color: #b6cbd0;
+        font-size: 0.84rem;
+        line-height: 1.55;
+      }
+
+      .definition-meta {
+        margin: 12px 0 0;
+        color: #7fdcef;
+        font-size: 0.74rem;
+      }
+
+      /* Botones accesibles por teclado; el anillo de foco se dibuja en el canvas. */
+      .keyword-targets button {
+        position: fixed;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        border: 0;
+        white-space: nowrap;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .particle-controls {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 5;
+      }
+
+      body.is-exploring .particle-controls {
+        top: auto;
+        bottom: calc(var(--footer-height) + 8px);
+      }
+
+      @media (max-width: 760px) {
+        :root {
+          --footer-height: 64px;
+        }
+
+        .topbar {
+          flex-direction: column;
+          gap: 14px;
+          padding: 16px 16px 0;
+        }
+
+        .topbar h2 {
+          font-size: 1.2rem;
+        }
+
+        .species-filters {
+          align-self: stretch;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          gap: 6px;
+        }
+
+        .species-button {
+          width: calc((100vw - 44px) / 3);
+          min-height: 84px;
+          padding: 6px;
+          font-size: 0.66rem;
+        }
+
+        .species-button img {
+          width: 40px;
+          height: 40px;
+        }
+
+        .welcome {
+          gap: 22px;
+        }
+
+        .definition-panel {
+          right: 16px;
+          left: 16px;
+          width: auto;
+          max-height: 38vh;
+          padding: 16px 18px;
+        }
+
+        .hint {
+          font-size: 0.8rem;
+        }
+
+        body.is-exploring .particle-controls {
+          top: 8px;
+          right: 8px;
+          bottom: auto;
+          left: auto;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+          transition-delay: 0s !important;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div class="intro">
-          <h1>
-            <a class="home-link" href="index.html">
-              <span>Redes inteligentes detrás</span>
-              <span>de la bioluminiscencia</span>
-            </a>
-          </h1>
-        </div>
-        <nav class="species-filters" id="species-filters" aria-label="Filtrar por especie"></nav>
-      </header>
+    <canvas id="scene" aria-hidden="true"></canvas>
 
-      <section class="visualization" aria-label="Visualización de keywords">
-        <div class="stage" id="particle-stage">
-          <img
-            class="inactive-artwork"
-            src="img/particulas_inactivas.png"
-            alt=""
-            aria-hidden="true"
-          >
-          <div class="particle-layer" id="particle-layer"></div>
-        </div>
-      </section>
+    <header class="topbar" id="topbar">
+      <h2>
+        <a class="home-link" href="index.html">
+          <span>Redes inteligentes detrás</span>
+          <span>de la bioluminiscencia</span>
+        </a>
+      </h2>
+      <nav class="species-filters" id="species-filters" aria-label="Filtrar por especie"></nav>
+    </header>
 
-      <p class="app-status" id="app-status" role="status">Cargando datos y partículas…</p>
-
-      <aside class="definition-panel" id="definition-panel" aria-live="polite" hidden>
-        <h2 id="definition-title"></h2>
-        <p class="definition-text" id="definition-text"></p>
-      </aside>
+    <main class="welcome" id="welcome">
+      <h1 class="sr-only">Luciferina</h1>
+      <div class="logo-slot" id="logo-slot" role="img" aria-label="Luciferina, formado por partículas"></div>
+      <p class="welcome-text">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
+        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+        exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
+        dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+      </p>
+      <button class="cta" id="cta" type="button">Explora las redes</button>
     </main>
+
+    <div class="keyword-targets" id="keyword-targets" role="group" aria-label="Partículas interactivas de keywords"></div>
+
+    <aside class="definition-panel" id="definition-panel" aria-live="polite" hidden>
+      <h2 id="definition-title"></h2>
+      <p class="definition-text" id="definition-text"></p>
+      <p class="definition-meta" id="definition-meta"></p>
+    </aside>
+
+    <footer class="footer">
+      <p class="hint">Haz click en las partículas para ver sus conexiones.</p>
+      <p class="app-status" id="app-status" role="status">Cargando datos y partículas…</p>
+    </footer>
+
+    <script type="module">
+      // ---------------------------------------------------------------------
+      // Configuración (editable con ?gui)
+      // ---------------------------------------------------------------------
+      const SPECIES_IMAGES = new Map([
+        [1, "img/hongo.png"],
+        [2, "img/luciernaga.png"],
+        [3, "img/dinoflagelado.png"],
+      ]);
+      const HITBOX_PADDING = 8;
+      const TAU = Math.PI * 2;
+      const isSmallScreen = matchMedia("(max-width: 760px)").matches;
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+      const settings = {
+        // Partículas
+        planktonCount: isSmallScreen ? 900 : 2400, // bioluminiscencia adicional
+        planktonSize: 1,
+        keywordSize: isSmallScreen ? 5 : 6.5,
+        ambientSize: 1,
+        // Movimiento
+        driftSpeed: 0.6,
+        driftAmplitude: 10,
+        disperseDuration: 2.4,
+        pointerRadius: isSmallScreen ? 90 : 130,
+        pushStrength: 1,
+        springBack: 1,
+        // Brillo e intensidad
+        baseGlow: 0.35,
+        keywordGlow: 1,
+        activeGlow: 1.6,
+        bioIntensity: 1,
+        bioDecay: 1.2,
+        sensitivity: 1,
+      };
+
+      const COLORS = {
+        cyan: [0, 219, 255],
+        related: [182, 248, 255],
+        white: [255, 255, 255],
+        bio: [70, 200, 255],
+      };
+      const COLOR_KEYS = ["cyan", "related", "white", "bio"];
+
+      // ---------------------------------------------------------------------
+      // Datos: CSV, relaciones y formas del logotipo
+      // ---------------------------------------------------------------------
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let field = "";
+        let insideQuotes = false;
+        for (let index = 0; index < text.length; index += 1) {
+          const character = text[index];
+          if (insideQuotes) {
+            if (character === '"' && text[index + 1] === '"') {
+              field += '"';
+              index += 1;
+            } else if (character === '"') insideQuotes = false;
+            else field += character;
+          } else if (character === '"' && field.length === 0) insideQuotes = true;
+          else if (character === ",") {
+            row.push(field);
+            field = "";
+          } else if (character === "\n" || character === "\r") {
+            row.push(field);
+            if (row.some((cell) => cell.trim() !== "")) rows.push(row);
+            row = [];
+            field = "";
+            if (character === "\r" && text[index + 1] === "\n") index += 1;
+          } else field += character;
+        }
+        if (insideQuotes) throw new Error("Un CSV contiene un campo entre comillas sin cerrar.");
+        if (field.length > 0 || row.length > 0) {
+          row.push(field);
+          if (row.some((cell) => cell.trim() !== "")) rows.push(row);
+        }
+        if (rows.length < 2) throw new Error("Un CSV no contiene encabezados y datos.");
+        const headers = rows[0].map((header, index) =>
+          (index === 0 ? header.replace(/^﻿/, "") : header).trim()
+        );
+        return rows.slice(1).map((cells) =>
+          Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""]))
+        );
+      }
+
+      async function fetchText(path) {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`No se pudo cargar ${path} (HTTP ${response.status}).`);
+        return response.text();
+      }
+
+      function parseIds(value, keywordId) {
+        return value.split(",").reduce((ids, item) => {
+          const id = item.trim();
+          if (!id) return ids;
+          if (/^\d+$/.test(id)) ids.push(Number(id));
+          else console.warn(`Relación keyword-keyword inválida en keyword ${keywordId}: "${id}".`);
+          return ids;
+        }, []);
+      }
+
+      async function loadData() {
+        const [speciesCsv, keywordsCsv, relationsCsv, logoSvg] = await Promise.all([
+          fetchText("data/especies.csv"),
+          fetchText("data/keywords.csv"),
+          fetchText("data/keyword_especie.csv"),
+          fetchText("img/logotipo_luciferina.svg"),
+        ]);
+
+        const species = new Map(
+          parseCsv(speciesCsv).map((row) => [Number(row.id), { id: Number(row.id), name: row.nombre.trim() }])
+        );
+        const keywords = new Map(
+          parseCsv(keywordsCsv).map((row) => {
+            const id = Number(row.id);
+            return [id, {
+              id,
+              name: row.keyword.trim(),
+              definition: row.definicion.trim(),
+              relatedKeywordIds: parseIds(row.keyword_ids, id),
+              speciesIds: new Set(),
+            }];
+          })
+        );
+        for (const row of parseCsv(relationsCsv)) {
+          const keyword = keywords.get(Number(row.Keyword));
+          if (keyword && species.has(Number(row.Especie))) keyword.speciesIds.add(Number(row.Especie));
+          else console.warn(`Relación keyword-especie inválida: ${row.Keyword}, ${row.Especie}.`);
+        }
+
+        // Relaciones bidireccionales.
+        const related = new Map([...keywords.keys()].map((id) => [id, new Set()]));
+        for (const keyword of keywords.values()) {
+          for (const relatedId of keyword.relatedKeywordIds) {
+            if (!keywords.has(relatedId)) {
+              console.warn(`El keyword ${keyword.id} refiere al keyword inexistente ${relatedId}.`);
+            } else if (relatedId !== keyword.id) {
+              related.get(keyword.id).add(relatedId);
+              related.get(relatedId).add(keyword.id);
+            }
+          }
+        }
+
+        const svg = new DOMParser().parseFromString(logoSvg, "image/svg+xml");
+        if (svg.querySelector("parsererror")) throw new Error("El logotipo SVG no es válido.");
+        const [vx, vy, vw, vh] = (svg.documentElement.getAttribute("viewBox") ?? "")
+          .split(/[\s,]+/).map(Number);
+        if (![vx, vy, vw, vh].every(Number.isFinite) || vw <= 0 || vh <= 0) {
+          throw new Error("El logotipo necesita un viewBox válido.");
+        }
+        // Coordenadas normalizadas: x/y en [0,1] del logo, radios relativos al ancho.
+        const shapes = [...svg.querySelectorAll("circle, ellipse")].map((shape) => ({
+          x: (Number(shape.getAttribute("cx")) - vx) / vw,
+          y: (Number(shape.getAttribute("cy")) - vy) / vh,
+          rx: Number(shape.getAttribute("rx") ?? shape.getAttribute("r")) / vw,
+          ry: Number(shape.getAttribute("ry") ?? shape.getAttribute("r")) / vw,
+        }));
+        if (shapes.length < keywords.size) {
+          throw new Error(`El logotipo tiene ${shapes.length} formas y se necesitan ${keywords.size}.`);
+        }
+        return { species, keywords, related, shapes };
+      }
+
+      // ---------------------------------------------------------------------
+      // Utilidades
+      // ---------------------------------------------------------------------
+      function seededRandom(seed) {
+        let value = seed >>> 0;
+        return () => {
+          value = (Math.imul(value, 1664525) + 1013904223) >>> 0;
+          return value / 4294967296;
+        };
+      }
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+      function makeGlowSprite([r, g, b]) {
+        const size = 64;
+        const sprite = document.createElement("canvas");
+        sprite.width = sprite.height = size;
+        const context = sprite.getContext("2d");
+        const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, `rgba(${r},${g},${b},0.9)`);
+        gradient.addColorStop(0.25, `rgba(${r},${g},${b},0.35)`);
+        gradient.addColorStop(0.6, `rgba(${r},${g},${b},0.08)`);
+        gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
+        return sprite;
+      }
+
+      // ---------------------------------------------------------------------
+      // Escena
+      // ---------------------------------------------------------------------
+      class LuciferinaScene {
+        constructor(data) {
+          this.data = data;
+          this.canvas = document.querySelector("#scene");
+          this.context = this.canvas.getContext("2d");
+          this.logoSlot = document.querySelector("#logo-slot");
+          this.topbar = document.querySelector("#topbar");
+          this.footer = document.querySelector(".footer");
+          this.sprites = Object.fromEntries(COLOR_KEYS.map((key) => [key, makeGlowSprite(COLORS[key])]));
+          this.fills = Object.fromEntries(COLOR_KEYS.map((key) => [key, `rgb(${COLORS[key].join(",")})`]));
+          this.buckets = new Map();
+
+          this.selectedKeywordId = null;
+          this.selectedSpeciesId = null;
+          this.hoveredId = null;
+          this.focusedId = null;
+
+          this.progress = 1; // 0 = logotipo, 1 = dispersas
+          this.targetProgress = 0; // la entrada reúne las partículas en la palabra
+          this.time = 0;
+          this.fadeIn = 0;
+          this.lastFrame = null;
+          this.pointer = { x: 0, y: 0, prevX: 0, prevY: 0, active: false, moved: false };
+
+          this.buildAnchored();
+          this.plankton = [];
+          this.resize();
+          this.setPlanktonCount(settings.planktonCount);
+
+          this.onResize = () => this.resize();
+          addEventListener("resize", this.onResize);
+          this.bindPointer();
+          this.frame = this.frame.bind(this);
+          requestAnimationFrame(this.frame);
+        }
+
+        // Partículas del logotipo: 757 formas, 151 de ellas son keywords.
+        buildAnchored() {
+          const { shapes, keywords } = this.data;
+          const random = seededRandom(757);
+          const keywordList = [...keywords.values()];
+          const keywordByShape = new Map();
+          keywordList.forEach((keyword, index) => {
+            keywordByShape.set(Math.floor(((index + 0.5) * shapes.length) / keywordList.length), keyword);
+          });
+          this.averageRadius = shapes.reduce((sum, shape) => sum + (shape.rx + shape.ry) / 2, 0) / shapes.length;
+
+          this.anchored = shapes.map((shape, index) => {
+            const keyword = keywordByShape.get(index) ?? null;
+            return {
+              keyword,
+              id: keyword?.id ?? -1,
+              lx: shape.x,
+              ly: shape.y,
+              rx: shape.rx,
+              ry: shape.ry,
+              sx: random(),
+              sy: random(),
+              curveX: (random() - 0.5) * 2,
+              curveY: (random() - 0.5) * 2,
+              delay: random(),
+              phase: random() * TAU,
+              spin: (random() - 0.5) * 0.6,
+              rot: (random() - 0.5) * Math.PI,
+              ox: 0, oy: 0, vx: 0, vy: 0, e: 0,
+              x: 0, y: 0, drx: 0, dry: 0, drot: 0,
+            };
+          });
+          this.keywordParticles = this.anchored.filter((particle) => particle.keyword);
+          this.keywordParticleById = new Map(this.keywordParticles.map((particle) => [particle.id, particle]));
+        }
+
+        resize() {
+          const dpr = Math.min(devicePixelRatio || 1, 2);
+          this.width = innerWidth;
+          this.height = innerHeight;
+          this.canvas.width = Math.round(this.width * dpr);
+          this.canvas.height = Math.round(this.height * dpr);
+          this.context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          const slot = this.logoSlot.getBoundingClientRect();
+          this.logo = { x: slot.left, y: slot.top, w: slot.width, h: slot.height };
+
+          const top = this.topbar.getBoundingClientRect().bottom + 24;
+          const bottom = this.height - this.footer.getBoundingClientRect().height - 16;
+          const side = this.width < 761 ? 20 : 40;
+          this.field = { x: side, y: top, w: this.width - side * 2, h: Math.max(120, bottom - top) };
+          this.layoutKeywords();
+
+          if (this.previousSize) {
+            const scaleX = this.width / this.previousSize.w;
+            const scaleY = this.height / this.previousSize.h;
+            for (const particle of this.plankton) {
+              particle.x *= scaleX;
+              particle.y *= scaleY;
+            }
+          }
+          this.previousSize = { w: this.width, h: this.height };
+        }
+
+        // Rejilla con variación: las keywords quedan repartidas sin encimarse.
+        layoutKeywords() {
+          const random = seededRandom(151);
+          const count = this.keywordParticles.length;
+          const columns = Math.max(1, Math.round(Math.sqrt((count * this.field.w) / this.field.h)));
+          const rows = Math.ceil(count / columns);
+          const cells = [...Array(columns * rows).keys()];
+          for (let index = cells.length - 1; index > 0; index -= 1) {
+            const swap = Math.floor(random() * (index + 1));
+            [cells[index], cells[swap]] = [cells[swap], cells[index]];
+          }
+          this.keywordParticles.forEach((particle, index) => {
+            const cell = cells[index];
+            particle.sx = ((cell % columns) + 0.2 + random() * 0.6) / columns;
+            particle.sy = (Math.floor(cell / columns) + 0.2 + random() * 0.6) / rows;
+          });
+        }
+
+        setPlanktonCount(count) {
+          const random = seededRandom(this.plankton.length * 7919 + 3);
+          if (count < this.plankton.length) this.plankton.length = count;
+          while (this.plankton.length < count) {
+            const size = 0.5 + random() ** 2 * 1.4;
+            this.plankton.push({
+              x: random() * this.width,
+              y: random() * this.height,
+              rx: size * (1 + random() * 0.6),
+              ry: size,
+              rot: random() * Math.PI,
+              phase: random() * TAU,
+              drift: 4 + random() * 10,
+              vx: 0, vy: 0, e: 0,
+            });
+          }
+          this.updateStatus();
+        }
+
+        // -------------------------------------------------------------------
+        // Interacción
+        // -------------------------------------------------------------------
+        bindPointer() {
+          addEventListener("pointermove", (event) => {
+            const pointer = this.pointer;
+            if (!pointer.active) {
+              pointer.prevX = event.clientX;
+              pointer.prevY = event.clientY;
+              pointer.active = true;
+            }
+            pointer.x = event.clientX;
+            pointer.y = event.clientY;
+            pointer.moved = true;
+            pointer.isMouse = event.pointerType === "mouse";
+            if (pointer.isMouse) this.updateHover();
+          }, { passive: true });
+          addEventListener("pointerdown", (event) => {
+            this.pointer.prevX = this.pointer.x = event.clientX;
+            this.pointer.prevY = this.pointer.y = event.clientY;
+            this.pointer.active = true;
+          }, { passive: true });
+          document.documentElement.addEventListener("pointerleave", () => {
+            this.pointer.active = false;
+            this.hoveredId = null;
+            this.canvas.classList.remove("is-pointer");
+          });
+          this.canvas.addEventListener("click", (event) => {
+            const particle = this.keywordAt(event.clientX, event.clientY);
+            if (particle) this.onSelect?.(particle.id);
+          });
+        }
+
+        updateHover() {
+          const particle = this.keywordAt(this.pointer.x, this.pointer.y);
+          this.hoveredId = particle?.id ?? null;
+          this.canvas.classList.toggle("is-pointer", Boolean(particle));
+        }
+
+        keywordAt(x, y) {
+          let nearest = null;
+          let nearestDistance = Infinity;
+          for (const particle of this.keywordParticles) {
+            if (!this.isAvailable(particle.keyword)) continue;
+            const radius = Math.max(particle.drx, particle.dry) + HITBOX_PADDING;
+            const distance = Math.hypot(x - particle.x, y - particle.y) / radius;
+            if (distance <= 1 && distance < nearestDistance) {
+              nearest = particle;
+              nearestDistance = distance;
+            }
+          }
+          return nearest;
+        }
+
+        isAvailable(keyword) {
+          return this.selectedSpeciesId === null || keyword.speciesIds.has(this.selectedSpeciesId);
+        }
+
+        lookFor(keyword) {
+          const isSelected = keyword.id === this.selectedKeywordId;
+          const isRelated = Boolean(this.data.related.get(this.selectedKeywordId)?.has(keyword.id));
+          const isSpeciesMatch = this.selectedSpeciesId !== null && keyword.speciesIds.has(this.selectedSpeciesId);
+          const isMuted = this.selectedSpeciesId !== null && !isSpeciesMatch;
+          return { isSelected, isRelated, isSpeciesMatch, isMuted };
+        }
+
+        disperse() {
+          this.targetProgress = 1;
+        }
+
+        gather() {
+          this.targetProgress = 0;
+        }
+
+        // Excita (brillo) y empuja las partículas cercanas al recorrido del cursor,
+        // como los dinoflagelados cuando la mano atraviesa el agua.
+        stir(particle, segment) {
+          const { ax, ay, dx, dy, lengthSquared, length, radius } = segment;
+          let t = lengthSquared > 0 ? ((particle.x - ax) * dx + (particle.y - ay) * dy) / lengthSquared : 0;
+          t = clamp(t, 0, 1);
+          const closestX = ax + dx * t;
+          const closestY = ay + dy * t;
+          const offsetX = particle.x - closestX;
+          const offsetY = particle.y - closestY;
+          const distance = Math.hypot(offsetX, offsetY);
+          if (distance >= radius) return;
+          const falloff = (1 - distance / radius) ** 2;
+          const agitation = clamp(length / (radius * 0.12), 0, 1.5);
+          particle.e = Math.min(1, particle.e + falloff * agitation * 0.55 * settings.sensitivity);
+          if (reducedMotion.matches) return;
+          const push = settings.pushStrength * falloff;
+          const inverse = distance > 0.001 ? 1 / distance : 0;
+          // Arrastre en la dirección del movimiento + leve separación + remolino.
+          const swirl = Math.sin(particle.phase) * 0.6;
+          particle.vx += dx * push * 4.5 + offsetX * inverse * length * push * 2.2 - dy * swirl * push * 2;
+          particle.vy += dy * push * 4.5 + offsetY * inverse * length * push * 2.2 + dx * swirl * push * 2;
+        }
+
+        // -------------------------------------------------------------------
+        // Animación
+        // -------------------------------------------------------------------
+        frame(now) {
+          const dt = this.lastFrame === null ? 1 / 60 : Math.min(0.05, (now - this.lastFrame) / 1000);
+          this.lastFrame = now;
+          const still = reducedMotion.matches;
+          this.time += dt * settings.driftSpeed * (still ? 0 : 1);
+          this.fadeIn = Math.min(1, this.fadeIn + dt / 1.2);
+
+          if (this.progress !== this.targetProgress) {
+            const step = still ? 1 : dt / Math.max(0.05, settings.disperseDuration);
+            this.progress = this.progress < this.targetProgress
+              ? Math.min(this.targetProgress, this.progress + step)
+              : Math.max(this.targetProgress, this.progress - step);
+          }
+
+          let segment = null;
+          const pointer = this.pointer;
+          if (pointer.active && pointer.moved) {
+            const dx = pointer.x - pointer.prevX;
+            const dy = pointer.y - pointer.prevY;
+            const lengthSquared = dx * dx + dy * dy;
+            if (lengthSquared > 0.25) {
+              segment = {
+                ax: pointer.prevX, ay: pointer.prevY, dx, dy, lengthSquared,
+                length: Math.sqrt(lengthSquared), radius: settings.pointerRadius,
+              };
+            }
+          }
+          pointer.prevX = pointer.x;
+          pointer.prevY = pointer.y;
+          pointer.moved = false;
+
+          const damping = Math.exp(-dt * 2.6);
+          const spring = 14 * settings.springBack * settings.springBack;
+          const decay = Math.exp(-dt / Math.max(0.05, settings.bioDecay));
+
+          this.updateAnchored(dt, segment, damping, spring, decay);
+          this.updatePlankton(dt, segment, damping, decay);
+          // Las partículas se mueven bajo un cursor quieto: el hover se recalcula.
+          if (pointer.active && pointer.isMouse) this.updateHover();
+          this.draw();
+          requestAnimationFrame(this.frame);
+        }
+
+        updateAnchored(dt, segment, damping, spring, decay) {
+          const { logo, field, width, height, time } = this;
+          const amplitude = reducedMotion.matches ? 0 : settings.driftAmplitude;
+          const logoScale = logo.w;
+          const keywordScale = settings.keywordSize / this.averageRadius;
+          const ambientScale = (1.6 * settings.ambientSize) / this.averageRadius;
+          const minimumRadius = 0.8;
+
+          for (const particle of this.anchored) {
+            const local = easeInOut(clamp((this.progress - particle.delay * 0.45) / 0.55, 0, 1));
+            const isKeyword = particle.keyword !== null;
+            const homeX = logo.x + particle.lx * logo.w;
+            const homeY = logo.y + particle.ly * logo.h;
+            const targetX = isKeyword ? field.x + particle.sx * field.w : particle.sx * width;
+            const targetY = isKeyword ? field.y + particle.sy * field.h : particle.sy * height;
+            const arc = Math.sin(local * Math.PI) * 90;
+            const wander = amplitude * (0.08 + local * 0.92);
+
+            // Física del agua: el desplazamiento regresa con un resorte amortiguado.
+            if (segment) this.stir(particle, segment);
+            particle.vx = (particle.vx - particle.ox * spring * dt) * damping;
+            particle.vy = (particle.vy - particle.oy * spring * dt) * damping;
+            particle.ox += particle.vx * dt;
+            particle.oy += particle.vy * dt;
+            particle.e *= decay;
+
+            particle.x = lerp(homeX, targetX, local) + particle.curveX * arc
+              + Math.sin(time * 0.9 + particle.phase) * wander + particle.ox;
+            particle.y = lerp(homeY, targetY, local) + particle.curveY * arc
+              + Math.cos(time * 0.7 + particle.phase * 1.3) * wander * 0.8 + particle.oy;
+
+            const scale = lerp(logoScale, isKeyword ? keywordScale : ambientScale, local);
+            particle.drx = Math.max(minimumRadius, particle.rx * scale);
+            particle.dry = Math.max(minimumRadius, particle.ry * scale);
+            particle.drot = (particle.rot + time * particle.spin) * local;
+          }
+        }
+
+        updatePlankton(dt, segment, damping, decay) {
+          const { width, height, time } = this;
+          const still = reducedMotion.matches;
+          const margin = 10;
+          for (const particle of this.plankton) {
+            if (segment) this.stir(particle, segment);
+            particle.vx *= damping;
+            particle.vy *= damping;
+            const drift = still ? 0 : particle.drift * settings.driftSpeed;
+            particle.x += (particle.vx + Math.sin(time * 0.5 + particle.phase) * drift) * dt;
+            particle.y += (particle.vy + Math.cos(time * 0.4 + particle.phase * 1.7) * drift - drift * 0.15) * dt;
+            if (particle.x < -margin) particle.x += width + margin * 2;
+            else if (particle.x > width + margin) particle.x -= width + margin * 2;
+            if (particle.y < -margin) particle.y += height + margin * 2;
+            else if (particle.y > height + margin) particle.y -= height + margin * 2;
+            particle.e *= decay;
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Dibujo: halos con mezcla aditiva y núcleos elípticos agrupados.
+        // -------------------------------------------------------------------
+        glow(color, x, y, radius, alpha) {
+          if (alpha <= 0.01 || radius <= 0.5) return;
+          const context = this.context;
+          context.globalAlpha = Math.min(1, alpha);
+          context.drawImage(this.sprites[color], x - radius, y - radius, radius * 2, radius * 2);
+        }
+
+        core(color, alpha, x, y, rx, ry, rotation) {
+          const level = Math.round(clamp(alpha, 0, 1) * 12);
+          if (level <= 0) return;
+          const key = COLOR_KEYS.indexOf(color) * 16 + level;
+          let bucket = this.buckets.get(key);
+          if (!bucket) {
+            bucket = { color, alpha: level / 12, items: [] };
+            this.buckets.set(key, bucket);
+          }
+          bucket.items.push(x, y, rx, ry, rotation);
+        }
+
+        flushCores() {
+          const context = this.context;
+          for (const bucket of this.buckets.values()) {
+            const items = bucket.items;
+            if (!items.length) continue;
+            context.globalAlpha = bucket.alpha;
+            context.fillStyle = this.fills[bucket.color];
+            context.beginPath();
+            for (let index = 0; index < items.length; index += 5) {
+              const x = items[index];
+              const y = items[index + 1];
+              const rx = items[index + 2];
+              const rotation = items[index + 4];
+              context.moveTo(x + rx * Math.cos(rotation), y + rx * Math.sin(rotation));
+              context.ellipse(x, y, rx, items[index + 3], rotation, 0, TAU);
+            }
+            context.fill();
+            items.length = 0;
+          }
+        }
+
+        draw() {
+          const context = this.context;
+          const fade = this.fadeIn;
+          const bio = settings.bioIntensity;
+          const pulse = (phase) => 0.88 + 0.12 * Math.sin(this.time * 2.4 + phase);
+          context.globalCompositeOperation = "source-over";
+          context.globalAlpha = 1;
+          context.clearRect(0, 0, this.width, this.height);
+          context.globalCompositeOperation = "lighter";
+
+          // Plancton bioluminiscente: casi invisible hasta que se agita.
+          for (const particle of this.plankton) {
+            const flash = Math.pow(particle.e, 0.8) * bio;
+            const size = settings.planktonSize * (1 + flash * 0.6);
+            if (flash > 0.03) {
+              this.glow(flash > 0.7 ? "related" : "bio", particle.x, particle.y, (6 + 16 * flash) * size, flash * 0.9 * fade);
+            }
+            this.core(flash > 0.55 ? "white" : "bio", (0.07 + flash) * fade,
+              particle.x, particle.y, particle.rx * size, particle.ry * size, particle.rot);
+          }
+
+          // Conexiones de la keyword seleccionada.
+          const selected = this.keywordParticleById.get(this.selectedKeywordId);
+          if (selected) {
+            const relatedIds = this.data.related.get(selected.id);
+            context.lineWidth = 1;
+            for (const relatedId of relatedIds) {
+              const target = this.keywordParticleById.get(relatedId);
+              if (!target) continue;
+              const visible = this.isAvailable(target.keyword) ? 1 : 0.25;
+              const gradient = context.createLinearGradient(selected.x, selected.y, target.x, target.y);
+              gradient.addColorStop(0, `rgba(255,255,255,${0.45 * visible})`);
+              gradient.addColorStop(1, `rgba(0,219,255,${0.16 * visible})`);
+              context.globalAlpha = fade * settings.activeGlow / 1.6;
+              context.strokeStyle = gradient;
+              context.beginPath();
+              context.moveTo(selected.x, selected.y);
+              context.lineTo(target.x, target.y);
+              context.stroke();
+            }
+          }
+
+          // Formas del logotipo y keywords.
+          for (const particle of this.anchored) {
+            const flash = Math.pow(particle.e, 0.8) * bio;
+            const radius = Math.max(particle.drx, particle.dry);
+            if (!particle.keyword) {
+              const alpha = (0.55 + flash * 0.45) * fade;
+              this.glow(flash > 0.6 ? "related" : "cyan", particle.x, particle.y,
+                radius * (4 + flash * 4), (settings.baseGlow * 0.5 + flash * 0.8) * fade);
+              this.core(flash > 0.75 ? "related" : "cyan", alpha, particle.x, particle.y,
+                particle.drx, particle.dry, particle.drot);
+              continue;
+            }
+
+            const look = this.lookFor(particle.keyword);
+            const isHover = !look.isMuted && (particle.id === this.hoveredId || particle.id === this.focusedId);
+            let color = "cyan";
+            let alpha = 0.88;
+            let scale = 1;
+            let glow = settings.baseGlow * settings.keywordGlow;
+            if (look.isMuted) {
+              alpha = look.isSelected ? 0.3 : 0.12;
+              glow = 0;
+            } else {
+              if (look.isSpeciesMatch) {
+                alpha = 1;
+                glow = settings.baseGlow * settings.keywordGlow * settings.activeGlow * 1.4;
+              }
+              if (look.isRelated) {
+                color = "related";
+                alpha = 1;
+                glow = settings.baseGlow * settings.keywordGlow * settings.activeGlow * 1.8 * pulse(particle.phase);
+              }
+              if (look.isSelected) {
+                color = "white";
+                alpha = 1;
+                scale = 1.15;
+                glow = settings.baseGlow * settings.keywordGlow * settings.activeGlow * 1.2;
+              }
+              if (isHover) {
+                alpha = 1;
+                scale = Math.max(scale, 1.1);
+                glow += 0.45 * settings.keywordGlow;
+              }
+              glow += flash * 0.9;
+            }
+            particle.drx *= scale;
+            particle.dry *= scale;
+            this.glow(color === "cyan" && flash > 0.6 ? "related" : color, particle.x, particle.y,
+              radius * scale * (4.5 + flash * 3), glow * fade);
+            this.core(color, Math.min(1, alpha + (look.isMuted ? 0 : flash * 0.3)) * fade,
+              particle.x, particle.y, particle.drx, particle.dry, particle.drot);
+          }
+
+          context.globalCompositeOperation = "source-over";
+          this.flushCores();
+
+          // Contorno de la selección y anillo de foco de teclado.
+          if (selected) {
+            context.globalAlpha = fade;
+            context.strokeStyle = "#fff";
+            context.lineWidth = 1.5;
+            context.beginPath();
+            context.ellipse(selected.x, selected.y, selected.drx + 0.75, selected.dry + 0.75, selected.drot, 0, TAU);
+            context.stroke();
+          }
+          const focused = this.keywordParticleById.get(this.focusedId);
+          if (focused) {
+            context.globalAlpha = 1;
+            context.strokeStyle = "#e7f7fa";
+            context.lineWidth = 1;
+            context.beginPath();
+            context.arc(focused.x, focused.y, Math.max(focused.drx, focused.dry) + 6, 0, TAU);
+            context.stroke();
+          }
+          context.globalAlpha = 1;
+        }
+
+        updateStatus() {
+          const status = document.querySelector("#app-status");
+          if (status.classList.contains("is-error")) return;
+          const total = this.anchored.length + this.plankton.length;
+          status.textContent = `${this.data.keywords.size} keywords · ${this.data.species.size} especies · ${total.toLocaleString("es-MX")} partículas`;
+        }
+      }
+
+      // ---------------------------------------------------------------------
+      // Aplicación: estado, filtros, panel y flujo bienvenida → exploración
+      // ---------------------------------------------------------------------
+      class LuciferinaApp {
+        constructor(data) {
+          this.data = data;
+          this.scene = new LuciferinaScene(data);
+          this.scene.onSelect = (id) => this.selectKeyword(id);
+          this.welcome = document.querySelector("#welcome");
+          this.filters = document.querySelector("#species-filters");
+          this.panel = {
+            container: document.querySelector("#definition-panel"),
+            title: document.querySelector("#definition-title"),
+            definition: document.querySelector("#definition-text"),
+            meta: document.querySelector("#definition-meta"),
+          };
+          this.renderSpeciesFilters();
+          this.renderKeywordTargets();
+          this.renderStates();
+          this.setExploring(false);
+
+          document.querySelector("#cta").addEventListener("click", () => this.explore());
+          addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && this.scene.selectedKeywordId !== null) {
+              this.selectKeyword(this.scene.selectedKeywordId);
+            }
+          });
+        }
+
+        setExploring(exploring) {
+          document.body.classList.toggle("is-exploring", exploring);
+          this.welcome.inert = exploring;
+          document.querySelector("#topbar").inert = !exploring;
+        }
+
+        explore() {
+          this.setExploring(true);
+          this.scene.disperse();
+        }
+
+        showWelcome() {
+          this.setExploring(false);
+          this.scene.gather();
+        }
+
+        selectKeyword(id) {
+          const scene = this.scene;
+          const keyword = this.data.keywords.get(id);
+          if (!keyword || !scene.isAvailable(keyword)) return;
+          scene.selectedKeywordId = scene.selectedKeywordId === id ? null : id;
+          const selected = this.data.keywords.get(scene.selectedKeywordId);
+          this.panel.container.hidden = !selected;
+          if (selected) {
+            const count = this.data.related.get(selected.id).size;
+            this.panel.title.textContent = selected.name;
+            this.panel.definition.textContent = selected.definition;
+            this.panel.meta.textContent = `${count} ${count === 1 ? "conexión" : "conexiones"}`;
+          }
+          this.renderStates();
+        }
+
+        renderSpeciesFilters() {
+          this.filters.replaceChildren();
+          for (const species of this.data.species.values()) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "species-button";
+            button.dataset.speciesId = String(species.id);
+            const imagePath = SPECIES_IMAGES.get(species.id);
+            if (!imagePath) throw new Error(`No hay una imagen configurada para la especie ${species.id}.`);
+            const image = document.createElement("img");
+            image.src = imagePath;
+            image.alt = "";
+            image.setAttribute("aria-hidden", "true");
+            const label = document.createElement("span");
+            label.textContent = species.name;
+            button.append(image, label);
+            button.addEventListener("click", () => {
+              this.scene.selectedSpeciesId = this.scene.selectedSpeciesId === species.id ? null : species.id;
+              this.renderStates();
+            });
+            this.filters.append(button);
+          }
+        }
+
+        renderKeywordTargets() {
+          const container = document.querySelector("#keyword-targets");
+          this.targets = new Map();
+          for (const particle of this.scene.keywordParticles) {
+            const keyword = particle.keyword;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = keyword.name;
+            button.setAttribute("aria-label", `${keyword.name}: ${keyword.definition}`);
+            button.addEventListener("click", () => this.selectKeyword(keyword.id));
+            button.addEventListener("focus", () => { this.scene.focusedId = keyword.id; });
+            button.addEventListener("blur", () => { this.scene.focusedId = null; });
+            this.targets.set(keyword.id, button);
+            container.append(button);
+          }
+        }
+
+        renderStates() {
+          const scene = this.scene;
+          for (const [id, button] of this.targets) {
+            const look = scene.lookFor(this.data.keywords.get(id));
+            button.setAttribute("aria-pressed", String(look.isSelected));
+            button.setAttribute("aria-disabled", String(look.isMuted));
+            button.tabIndex = look.isMuted ? -1 : 0;
+          }
+          if (scene.hoveredId !== null && !scene.isAvailable(this.data.keywords.get(scene.hoveredId))) {
+            scene.hoveredId = null;
+          }
+          this.filters.querySelectorAll(".species-button").forEach((button) => {
+            const active = Number(button.dataset.speciesId) === scene.selectedSpeciesId;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-pressed", String(active));
+          });
+        }
+      }
+
+      // ---------------------------------------------------------------------
+      // dat.gui (solo con ?gui en la URL)
+      // ---------------------------------------------------------------------
+      async function createControls(app) {
+        const { GUI } = await import("https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js");
+        const scene = app.scene;
+        const host = document.createElement("div");
+        host.className = "particle-controls";
+        const gui = new GUI({ autoPlace: false, width: 280 });
+        host.append(gui.domElement);
+        document.body.append(host);
+
+        const particles = gui.addFolder("Partículas");
+        particles.add(settings, "planktonCount", 0, 10000, 100).name("Bioluminiscencia")
+          .onFinishChange((value) => scene.setPlanktonCount(value));
+        particles.add(settings, "planktonSize", 0.3, 3, 0.05).name("Tamaño plancton");
+        particles.add(settings, "keywordSize", 2, 14, 0.5).name("Tamaño keywords");
+        particles.add(settings, "ambientSize", 0.2, 3, 0.05).name("Tamaño ambiente");
+        particles.open();
+
+        const motion = gui.addFolder("Movimiento");
+        motion.add(settings, "driftSpeed", 0, 3, 0.05).name("Velocidad");
+        motion.add(settings, "driftAmplitude", 0, 40, 1).name("Oscilación");
+        motion.add(settings, "disperseDuration", 0.3, 6, 0.1).name("Duración dispersión");
+        motion.add(settings, "pointerRadius", 30, 320, 5).name("Radio del cursor");
+        motion.add(settings, "pushStrength", 0, 3, 0.05).name("Arrastre del agua");
+        motion.add(settings, "springBack", 0.2, 3, 0.05).name("Retorno");
+        motion.open();
+
+        const light = gui.addFolder("Brillo e intensidad");
+        light.add(settings, "baseGlow", 0, 1.5, 0.01).name("Brillo base");
+        light.add(settings, "keywordGlow", 0, 3, 0.05).name("Brillo keywords");
+        light.add(settings, "activeGlow", 0.5, 4, 0.05).name("Estados activos");
+        light.add(settings, "bioIntensity", 0, 2, 0.05).name("Intensidad bio");
+        light.add(settings, "sensitivity", 0.1, 4, 0.05).name("Sensibilidad");
+        light.add(settings, "bioDecay", 0.1, 5, 0.05).name("Duración destello (s)");
+        light.open();
+
+        gui.add({ welcome: () => app.showWelcome() }, "welcome").name("Formar logotipo");
+        gui.add({ explore: () => app.explore() }, "explore").name("Dispersar");
+        if (isSmallScreen) gui.close();
+      }
+
+      // ---------------------------------------------------------------------
+      // Inicio
+      // ---------------------------------------------------------------------
+      function showError(error) {
+        console.error("No se pudo iniciar Luciferina.", error);
+        const status = document.querySelector("#app-status");
+        status.classList.add("is-error");
+        status.textContent = `No se pudo cargar la visualización: ${error.message}`;
+      }
+
+      loadData()
+        .then((data) => {
+          const app = new LuciferinaApp(data);
+          if (new URLSearchParams(location.search).has("gui")) {
+            createControls(app).catch((error) => console.error("No se pudo cargar dat.gui.", error));
+          }
+        })
+        .catch(showError);
+    </script>
   </body>
 </html>
