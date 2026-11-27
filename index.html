@@ -709,6 +709,7 @@
               spin: (random() - 0.5) * 0.6,
               rot: (random() - 0.5) * Math.PI,
               ox: 0, oy: 0, vx: 0, vy: 0, e: 0,
+              pushOffsetX: 0, pushOffsetY: 0, pushElapsed: 1,
               x: 0, y: 0, drx: 0, dry: 0, drot: 0,
             };
           });
@@ -730,11 +731,9 @@
           const slot = this.logoSlot.getBoundingClientRect();
           this.logo = { x: slot.left, y: slot.top, w: slot.width, h: slot.height };
 
-          const top = this.topbar.getBoundingClientRect().bottom + 24;
-          const bottom = this.height - this.footer.getBoundingClientRect().height - 16;
-          const side = this.width < 761 ? 20 : 40;
-          this.field = { x: side, y: top, w: this.width - side * 2, h: Math.max(120, bottom - top) };
+          this.field = { x: 0, y: 0, w: this.width, h: this.height };
           this.layoutKeywords();
+          if (document.body.classList.contains("is-exploring")) this.pushKeywordsFromOverlays();
 
           if (this.previousSize) {
             const scaleX = this.width / this.previousSize.w;
@@ -749,6 +748,7 @@
 
         // Rejilla con variación: las keywords quedan repartidas sin encimarse.
         layoutKeywords() {
+          if (this.keywordLayoutInitialized) return;
           const random = seededRandom(151);
           const count = this.keywordParticles.length;
           const columns = Math.max(1, Math.round(Math.sqrt((count * this.field.w) / this.field.h)));
@@ -763,6 +763,99 @@
             particle.sx = ((cell % columns) + 0.2 + random() * 0.6) / columns;
             particle.sy = (Math.floor(cell / columns) + 0.2 + random() * 0.6) / rows;
           });
+          this.keywordLayoutInitialized = true;
+        }
+
+        pushKeywordsFromOverlays() {
+          const selectors = [
+            ".topbar h2",
+            ".species-button",
+            ".footer .hint",
+            "#app-status",
+            ".particle-controls",
+          ];
+          const obstacles = [...document.querySelectorAll(selectors.join(","))]
+            .filter((element) => element.getClientRects().length > 0)
+            .map((element) => element.getBoundingClientRect());
+          if (document.body.classList.contains("is-exploring")) {
+            const panelStyle = getComputedStyle(document.querySelector(".definition-panel"));
+            const panelLeft = Number.parseFloat(panelStyle.left);
+            const panelRight = Number.parseFloat(panelStyle.right);
+            const panelWidth = panelStyle.width === "auto"
+              ? this.width - panelLeft - panelRight
+              : Number.parseFloat(panelStyle.width);
+            const panelHeight = Number.parseFloat(panelStyle.maxHeight);
+            const panelBottom = Number.parseFloat(panelStyle.bottom);
+            const left = Number.isFinite(panelLeft) ? panelLeft : this.width - panelRight - panelWidth;
+            obstacles.push({
+              left,
+              top: this.height - panelBottom - panelHeight,
+              right: left + panelWidth,
+              bottom: this.height - panelBottom,
+            });
+          }
+          const padding = settings.keywordSize * 2 + HITBOX_PADDING + settings.driftAmplitude;
+          const isObstructed = (x, y) => obstacles.some((rect) =>
+            x >= rect.left - padding && x <= rect.right + padding
+            && y >= rect.top - padding && y <= rect.bottom + padding
+          );
+          const random = seededRandom(this.width * 31 + this.height * 17 + this.keywordParticles.length);
+          const candidateCount = Math.max(600, this.keywordParticles.length * 16);
+          const edgePadding = settings.keywordSize * 2 + settings.driftAmplitude;
+          const candidates = [];
+          for (let index = 0; index < candidateCount; index += 1) {
+            const point = {
+              x: edgePadding + random() * Math.max(0, this.width - edgePadding * 2),
+              y: edgePadding + random() * Math.max(0, this.height - edgePadding * 2),
+            };
+            if (!isObstructed(point.x, point.y)) candidates.push(point);
+          }
+          if (!candidates.length) {
+            throw new Error("No hay espacio libre para distribuir las partículas activas.");
+          }
+
+          const occupied = [];
+          let startIndex = Math.floor(random() * candidates.length);
+          for (const particle of this.keywordParticles) {
+            let destination = null;
+            let bestClearance = -1;
+            for (let offset = 0; offset < candidates.length; offset += 1) {
+              const candidate = candidates[(startIndex + offset) % candidates.length];
+              let clearance = Infinity;
+              for (const point of occupied) {
+                const deltaX = point.x - candidate.x;
+                const deltaY = point.y - candidate.y;
+                clearance = Math.min(clearance, deltaX * deltaX + deltaY * deltaY);
+                if (clearance <= bestClearance) break;
+              }
+              if (clearance > bestClearance) {
+                destination = candidate;
+                bestClearance = clearance;
+              }
+            }
+            if (!destination) {
+              throw new Error("No se pudo apartar una partícula activa de los elementos de la interfaz.");
+            }
+
+            const itemX = this.field.x + particle.sx * this.field.w;
+            const itemY = this.field.y + particle.sy * this.field.h;
+            const local = easeInOut(clamp((this.progress - particle.delay * 0.45) / 0.55, 0, 1));
+            const deltaX = destination.x - itemX;
+            const deltaY = destination.y - itemY;
+            const currentPushProgress = easeInOut(particle.pushElapsed);
+            const remainingPush = particle.pushElapsed < 1 ? 1 - currentPushProgress : 0;
+            const currentPushOffsetX = particle.pushOffsetX * remainingPush;
+            const currentPushOffsetY = particle.pushOffsetY * remainingPush;
+            if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+              particle.sx = destination.x / this.field.w;
+              particle.sy = destination.y / this.field.h;
+              particle.pushOffsetX = currentPushOffsetX - deltaX * local;
+              particle.pushOffsetY = currentPushOffsetY - deltaY * local;
+              particle.pushElapsed = reducedMotion.matches ? 1 : 0;
+            }
+            occupied.push(destination);
+            startIndex = (startIndex + 1) % candidates.length;
+          }
         }
 
         setPlanktonCount(count) {
@@ -954,11 +1047,19 @@
             particle.ox += particle.vx * dt;
             particle.oy += particle.vy * dt;
             particle.e *= decay;
+            let pushOffsetX = 0;
+            let pushOffsetY = 0;
+            if (isKeyword && particle.pushElapsed < 1) {
+              particle.pushElapsed = Math.min(1, particle.pushElapsed + dt / 0.18);
+              const remainingPush = 1 - easeInOut(particle.pushElapsed);
+              pushOffsetX = particle.pushOffsetX * remainingPush;
+              pushOffsetY = particle.pushOffsetY * remainingPush;
+            }
 
-            particle.x = lerp(homeX, targetX, local) + particle.curveX * arc
-              + Math.sin(time * 0.9 + particle.phase) * wander + particle.ox;
-            particle.y = lerp(homeY, targetY, local) + particle.curveY * arc
-              + Math.cos(time * 0.7 + particle.phase * 1.3) * wander * 0.8 + particle.oy;
+            const x = lerp(homeX, targetX, local) + particle.curveX * arc
+              + Math.sin(time * 0.9 + particle.phase) * wander + particle.ox + pushOffsetX;
+            const y = lerp(homeY, targetY, local) + particle.curveY * arc
+              + Math.cos(time * 0.7 + particle.phase * 1.3) * wander * 0.8 + particle.oy + pushOffsetY;
 
             const particleRadius = (particle.rx + particle.ry) / 2;
             const keywordSizeMultiplier = FEATURED_KEYWORD_IDS.has(particle.id)
@@ -968,6 +1069,9 @@
             const scale = lerp(logoScale, targetScale, local);
             particle.drx = Math.max(minimumRadius, particle.rx * scale);
             particle.dry = Math.max(minimumRadius, particle.ry * scale);
+            const edge = isKeyword ? Math.max(particle.drx, particle.dry) : 0;
+            particle.x = clamp(x, edge, width - edge);
+            particle.y = clamp(y, edge, height - edge);
             particle.drot = (particle.rot + time * particle.spin) * local;
           }
         }
@@ -1200,6 +1304,7 @@
 
         explore() {
           this.setExploring(true);
+          this.scene.pushKeywordsFromOverlays();
           this.scene.disperse();
         }
 
@@ -1222,6 +1327,7 @@
             this.panel.definition.textContent = selected.definition;
             this.panel.meta.textContent = `${count} ${count === 1 ? "conexión" : "conexiones"}`;
           }
+          scene.pushKeywordsFromOverlays();
           this.renderStates();
         }
 
