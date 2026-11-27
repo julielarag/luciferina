@@ -125,9 +125,9 @@
         justify-content: center;
         gap: 6px;
         padding: 10px 8px;
-        border: 1px solid rgb(187 221 229 / 24%);
-        border-radius: 14px;
-        background: rgb(7 19 26 / 55%);
+        border: 0;
+        border-radius: 0;
+        background: rgb(0 0 0 / 55%);
         color: #c5d8dd;
         cursor: pointer;
         font-size: 0.75rem;
@@ -146,13 +146,11 @@
 
       .species-button:hover,
       .species-button:focus-visible {
-        border-color: rgb(0 219 255 / 70%);
         color: #fff;
       }
 
       .species-button.is-active {
-        border-color: var(--particle-color);
-        background: rgb(0 219 255 / 12%);
+        background: rgb(0 0 0 / 55%);
         color: var(--particle-color);
       }
 
@@ -196,8 +194,8 @@
       .cta {
         padding: 14px 30px;
         border: 1px solid rgb(0 219 255 / 65%);
-        border-radius: 999px;
-        background: rgb(0 219 255 / 10%);
+        border-radius: 0;
+        background: rgb(0 0 0 / 10%);
         color: #e7f7fa;
         cursor: pointer;
         font-size: 0.95rem;
@@ -210,7 +208,7 @@
 
       .cta:hover,
       .cta:focus-visible {
-        background: rgb(0 219 255 / 22%);
+        background: rgb(0 0 0 / 22%);
         box-shadow: 0 0 34px rgb(0 219 255 / 38%);
         color: #fff;
         outline: none;
@@ -265,9 +263,9 @@
         max-height: min(45vh, 360px);
         padding: 20px 22px;
         overflow-y: auto;
-        border: 1px solid rgb(0 219 255 / 30%);
-        border-radius: 12px;
-        background: rgb(7 19 26 / 94%);
+        border: 0;
+        border-radius: 0;
+        background: rgb(0 0 0 / 94%);
         box-shadow: 0 12px 40px rgb(0 0 0 / 28%), 0 0 24px rgb(0 219 255 / 7%);
         backdrop-filter: blur(14px);
       }
@@ -661,8 +659,8 @@
           this.focusedId = null;
           this.interactionsEnabled = false;
 
-          this.progress = 1; // 0 = logotipo, 1 = dispersas
-          this.targetProgress = 0; // la entrada reúne las partículas en la palabra
+          this.progress = 0; // 0 = logotipo, 1 = dispersas
+          this.targetProgress = 0;
           this.time = 0;
           this.fadeIn = 0;
           this.lastFrame = null;
@@ -684,7 +682,7 @@
         buildAnchored() {
           const { shapes, keywords } = this.data;
           const random = seededRandom(757);
-          const keywordList = [...keywords.values()];
+          const keywordList = [...keywords.values()].sort((a, b) => a.id - b.id);
           const keywordByShape = new Map();
           keywordList.forEach((keyword, index) => {
             keywordByShape.set(Math.floor(((index + 0.5) * shapes.length) / keywordList.length), keyword);
@@ -713,7 +711,9 @@
               x: 0, y: 0, drx: 0, dry: 0, drot: 0,
             };
           });
-          this.keywordParticles = this.anchored.filter((particle) => particle.keyword);
+          this.keywordParticles = this.anchored
+            .filter((particle) => particle.keyword)
+            .sort((a, b) => a.id - b.id);
           this.keywordParticleById = new Map(this.keywordParticles.map((particle) => [particle.id, particle]));
           const referenceParticle = this.keywordParticleById.get(ETAPA_FOTOSINTETICA_ID);
           if (!referenceParticle) throw new Error("No se encontró la keyword «Etapa fotosintética».");
@@ -1287,6 +1287,10 @@
           this.setExploring(false);
 
           document.querySelector("#cta").addEventListener("click", () => this.explore());
+          document.querySelector(".home-link").addEventListener("click", (event) => {
+            event.preventDefault();
+            this.showWelcome();
+          });
           addEventListener("keydown", (event) => {
             if (event.key === "Escape" && this.scene.selectedKeywordId !== null) {
               this.selectKeyword(this.scene.selectedKeywordId);
@@ -1309,7 +1313,13 @@
         }
 
         showWelcome() {
+          this.scene.selectedKeywordId = null;
+          this.scene.selectedSpeciesId = null;
+          this.scene.hoveredId = null;
+          this.scene.focusedId = null;
+          this.panel.container.hidden = true;
           this.setExploring(false);
+          this.renderStates();
           this.scene.gather();
         }
 
@@ -1327,7 +1337,6 @@
             this.panel.definition.textContent = selected.definition;
             this.panel.meta.textContent = `${count} ${count === 1 ? "conexión" : "conexiones"}`;
           }
-          scene.pushKeywordsFromOverlays();
           this.renderStates();
         }
 
